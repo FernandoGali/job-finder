@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from jobfinder_api import __version__
+from jobfinder_api.auth import CurrentUser, get_current_user
 from jobfinder_api.config import Settings, get_settings
 
 
@@ -34,6 +35,11 @@ def create_app() -> FastAPI:
             env=settings.app_env,
             supabase_configured=settings.supabase_configured,
         )
+
+    @app.get("/me", response_model=CurrentUser)
+    def me(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        """Quem está logado, segundo o token enviado. Exige login."""
+        return user
 
     return app
 
