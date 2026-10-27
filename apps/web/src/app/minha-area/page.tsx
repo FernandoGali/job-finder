@@ -6,6 +6,7 @@ import { LOGIN_PATH } from "@/lib/auth/routes";
 import { fetchResumes, type ResumesResult } from "@/lib/resumes";
 import { createClient } from "@/lib/supabase/server";
 
+import { DeleteAccount } from "./DeleteAccount";
 import { ResumeUploadSection } from "./ResumeUploadSection";
 
 export default async function MinhaAreaPage() {
@@ -41,6 +42,7 @@ export default async function MinhaAreaPage() {
       </header>
       <ResumeList result={resumes} />
       <ResumeUploadSection />
+      <DeleteAccount />
     </main>
   );
 }

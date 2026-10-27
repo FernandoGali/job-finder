@@ -43,6 +43,10 @@ class ResumeStore(Protocol):
     async def delete_upload(self, path: str) -> None: ...
     async def add_resume(self, resume: dict[str, Any]) -> dict[str, Any]: ...
     async def list_resumes(self) -> list[dict[str, Any]]: ...
+    async def get_resume_path(self, resume_id: str) -> str | None: ...
+    async def delete_resume(self, resume_id: str) -> None: ...
+    async def list_files(self, user_id: str) -> list[str]: ...
+    async def delete_files(self, paths: list[str]) -> None: ...
 
 
 async def get_resume_store(
@@ -146,3 +150,22 @@ async def list_resumes(store: ResumeStore = Depends(get_resume_store)) -> list[R
             status.HTTP_502_BAD_GATEWAY, "Não foi possível carregar seus currículos agora."
         ) from None
     return [ResumeOut(**row) for row in rows]
+
+
+@router.delete("/curriculos/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resume(
+    resume_id: uuid.UUID, store: ResumeStore = Depends(get_resume_store)
+) -> None:
+    """Apaga o arquivo e depois o registro: se algo falhar no meio, não sobra arquivo esquecido."""
+    try:
+        path = await store.get_resume_path(str(resume_id))
+        if path is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Currículo não encontrado.")
+        await store.delete_files([path])
+        await store.delete_resume(str(resume_id))
+    except SupabaseError:
+        logger.exception("Falha ao excluir currículo")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Não foi possível excluir o currículo agora. Tente de novo.",
+        ) from None

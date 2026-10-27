@@ -1,12 +1,11 @@
 import io
 import zipfile
-from typing import Any
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from jobfinder_api.auth import CurrentUser, UserSession, get_session, get_token_verifier
+from jobfinder_api.auth import CurrentUser, UserSession, get_token_verifier
 from jobfinder_api.config import Settings
 from jobfinder_api.main import create_app
 from jobfinder_api.resumes import (
@@ -17,9 +16,9 @@ from jobfinder_api.resumes import (
     detect_content_type,
     get_resume_store,
 )
-from jobfinder_api.supabase_user import SupabaseError, SupabaseUserClient
+from jobfinder_api.supabase_user import SupabaseUserClient
+from tests.conftest import USER_ID
 
-USER_ID = "11111111-1111-1111-1111-111111111111"
 PDF_BYTES = b"%PDF-1.7\n conteudo do curriculo"
 
 
@@ -29,61 +28,6 @@ def docx_bytes(extra: dict[str, str] | None = None) -> bytes:
         for name, text in (extra or {"word/document.xml": "<w:document/>"}).items():
             archive.writestr(name, text)
     return buffer.getvalue()
-
-
-class FakeStore:
-    """Supabase de mentira, em memória, que pode ser configurado para falhar."""
-
-    def __init__(self) -> None:
-        self.consents: list[dict[str, str]] = []
-        self.files: dict[str, bytes] = {}
-        self.resumes: list[dict[str, Any]] = []
-        self.fail_on: set[str] = set()
-
-    def _maybe_fail(self, step: str) -> None:
-        if step in self.fail_on:
-            raise SupabaseError(step)
-
-    async def add_consent(self, user_id: str, purpose: str, version: str) -> str:
-        self._maybe_fail("consent")
-        self.consents.append({"user_id": user_id, "purpose": purpose, "version": version})
-        return f"consent-{len(self.consents)}"
-
-    async def upload(self, path: str, content: bytes, content_type: str) -> None:
-        self._maybe_fail("upload")
-        self.files[path] = content
-
-    async def delete_upload(self, path: str) -> None:
-        self.files.pop(path)
-
-    async def add_resume(self, resume: dict[str, Any]) -> dict[str, Any]:
-        self._maybe_fail("resume")
-        row = {
-            **resume,
-            "id": f"resume-{len(self.resumes) + 1}",
-            "uploaded_at": "2026-10-27T18:00:00Z",
-        }
-        self.resumes.append(row)
-        return row
-
-    async def list_resumes(self) -> list[dict[str, Any]]:
-        self._maybe_fail("list")
-        return list(reversed(self.resumes))
-
-
-@pytest.fixture
-def store() -> FakeStore:
-    return FakeStore()
-
-
-@pytest.fixture
-def client(store) -> TestClient:
-    app = create_app()
-    app.dependency_overrides[get_session] = lambda: UserSession(
-        user=CurrentUser(id=USER_ID, email="ana@exemplo.com"), access_token="token-da-ana"
-    )
-    app.dependency_overrides[get_resume_store] = lambda: store
-    return TestClient(app)
 
 
 def send(client, content=PDF_BYTES, filename="Meu Currículo.pdf", consent="true", version="v1"):
@@ -122,7 +66,8 @@ def test_recusa_sem_consentimento(client, store):
 
     assert response.status_code == 400
     assert "aceite o termo" in response.json()["detail"]
-    assert store.consents == [] and store.files == {}
+    assert store.consents == []
+    assert store.files == {}
 
 
 def test_recusa_termo_desatualizado(client, store):
@@ -243,3 +188,35 @@ async def test_store_age_em_nome_do_usuario_logado():
     assert isinstance(store, SupabaseUserClient)
     assert store._headers["Authorization"] == "Bearer token-da-ana"
     await generator.aclose()
+
+
+def test_exclui_o_curriculo_e_o_arquivo(client, store):
+    resume_id = send(client).json()["id"]
+
+    response = client.delete(f"/curriculos/{resume_id}")
+
+    assert response.status_code == 204
+    assert store.resumes == []
+    assert store.files == {}
+
+
+def test_exclusao_de_curriculo_inexistente_ou_de_outra_pessoa_responde_404(client, store):
+    # Pelo RLS, o currículo de outra pessoa simplesmente não aparece: mesmo efeito.
+    response = client.delete("/curriculos/99999999-9999-9999-9999-999999999999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Currículo não encontrado."
+
+
+def test_exclusao_recusa_id_que_nao_e_uuid(client):
+    assert client.delete("/curriculos/abc").status_code == 422
+
+
+def test_se_falhar_ao_apagar_o_registro_o_arquivo_ja_foi_apagado(client, store):
+    resume_id = send(client).json()["id"]
+    store.fail_on.add("delete_resume")
+
+    response = client.delete(f"/curriculos/{resume_id}")
+
+    assert response.status_code == 502
+    assert store.files == {}  # nunca sobra arquivo esquecido; tentar de novo apaga o registro

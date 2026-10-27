@@ -30,3 +30,43 @@ export async function fetchApiStatus(
     return { state: "offline", reason };
   }
 }
+
+export type ActionResult = { state: "ok" } | { state: "error"; message: string };
+
+export const SESSION_EXPIRED = "Sua sessão expirou. Saia e entre de novo.";
+export const API_OFFLINE = "Não foi possível falar com o servidor. Tente de novo em instantes.";
+
+/** As mensagens da API já vêm em português; 401 vira um pedido para entrar de novo. */
+export async function apiErrorMessage(response: Response): Promise<string> {
+  if (response.status === 401) {
+    return SESSION_EXPIRED;
+  }
+  try {
+    const { detail } = (await response.json()) as { detail?: unknown };
+    if (typeof detail === "string") {
+      return detail;
+    }
+  } catch {
+    // resposta sem JSON: cai na mensagem genérica
+  }
+  return "Algo deu errado. Tente de novo.";
+}
+
+/** Chama uma rota da API que não devolve conteúdo (ex.: DELETE). Nunca lança erro. */
+export async function callApi(
+  method: string,
+  path: string,
+  accessToken: string,
+  fetcher: typeof fetch = fetch,
+  baseUrl: string = apiBaseUrl(),
+): Promise<ActionResult> {
+  try {
+    const response = await fetcher(`${baseUrl}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return response.ok ? { state: "ok" } : { state: "error", message: await apiErrorMessage(response) };
+  } catch {
+    return { state: "error", message: API_OFFLINE };
+  }
+}

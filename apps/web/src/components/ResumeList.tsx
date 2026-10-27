@@ -1,5 +1,7 @@
 import type { ResumesResult } from "@/lib/resumes";
 
+import { DeleteResumeButton } from "./DeleteResumeButton";
+
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
   timeStyle: "short",
@@ -27,7 +29,8 @@ export function ResumeList({ result }: { result: ResumesResult }) {
       <h2>Meu currículo</h2>
       <p>
         <strong>{latest.original_filename}</strong> · {formatSize(latest.size_bytes)} · enviado em{" "}
-        {dateFormat.format(new Date(latest.uploaded_at))}
+        {dateFormat.format(new Date(latest.uploaded_at))}{" "}
+        <DeleteResumeButton resumeId={latest.id} filename={latest.original_filename} />
       </p>
       {older.length > 0 && (
         <details>
@@ -35,7 +38,8 @@ export function ResumeList({ result }: { result: ResumesResult }) {
           <ul>
             {older.map((resume) => (
               <li key={resume.id}>
-                {resume.original_filename} · {dateFormat.format(new Date(resume.uploaded_at))}
+                {resume.original_filename} · {dateFormat.format(new Date(resume.uploaded_at))}{" "}
+                <DeleteResumeButton resumeId={resume.id} filename={resume.original_filename} />
               </li>
             ))}
           </ul>

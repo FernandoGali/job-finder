@@ -1,4 +1,4 @@
-import { apiBaseUrl } from "./api";
+import { API_OFFLINE, apiBaseUrl, apiErrorMessage } from "./api";
 
 // Precisa ser igual ao CONSENT_VERSION da API (apps/api/.../resumes.py).
 export const CONSENT_VERSION = "v1";
@@ -22,9 +22,6 @@ export type Resume = {
 export type UploadResult = { state: "ok"; resume: Resume } | { state: "error"; message: string };
 
 export type ResumesResult = { state: "ok"; resumes: Resume[] } | { state: "error"; message: string };
-
-const SESSION_EXPIRED = "Sua sessão expirou. Saia e entre de novo.";
-const API_OFFLINE = "Não foi possível falar com o servidor. Tente de novo em instantes.";
 
 /** Avisa antes de enviar. A API confere de novo (inclusive o conteúdo do arquivo). */
 export function fileProblem(file: { name: string; size: number }): string | null {
@@ -61,7 +58,7 @@ export async function uploadResume(
     if (response.ok) {
       return { state: "ok", resume: (await response.json()) as Resume };
     }
-    return { state: "error", message: await errorMessage(response) };
+    return { state: "error", message: await apiErrorMessage(response) };
   } catch {
     return { state: "error", message: API_OFFLINE };
   }
@@ -80,24 +77,8 @@ export async function fetchResumes(
     if (response.ok) {
       return { state: "ok", resumes: (await response.json()) as Resume[] };
     }
-    return { state: "error", message: await errorMessage(response) };
+    return { state: "error", message: await apiErrorMessage(response) };
   } catch {
     return { state: "error", message: API_OFFLINE };
   }
-}
-
-/** As mensagens da API já vêm em português; 401 vira um pedido para entrar de novo. */
-async function errorMessage(response: Response): Promise<string> {
-  if (response.status === 401) {
-    return SESSION_EXPIRED;
-  }
-  try {
-    const { detail } = (await response.json()) as { detail?: unknown };
-    if (typeof detail === "string") {
-      return detail;
-    }
-  } catch {
-    // resposta sem JSON: cai na mensagem genérica
-  }
-  return "Algo deu errado. Tente de novo.";
 }
