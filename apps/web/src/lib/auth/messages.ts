@@ -2,7 +2,7 @@ const MESSAGES: Record<string, string> = {
   invalid_credentials: "E-mail ou senha incorretos.",
   email_not_confirmed: "Confirme seu e-mail antes de entrar. Procure a mensagem na sua caixa de entrada.",
   user_already_exists: "Já existe uma conta com este e-mail. Tente entrar.",
-  weak_password: "Senha fraca. Escolha uma senha mais longa e difícil de adivinhar.",
+  weak_password: "Senha fraca. Use no mínimo 8 caracteres, com letra minúscula, letra maiúscula e número.",
   email_address_invalid: "Este e-mail não é válido.",
   over_email_send_rate_limit: "Muitos e-mails enviados em pouco tempo. Aguarde alguns minutos.",
   over_request_rate_limit: "Muitas tentativas em pouco tempo. Aguarde alguns minutos.",

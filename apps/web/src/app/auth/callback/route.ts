@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { HOME_PATH, LOGIN_PATH } from "@/lib/auth/routes";
+import { HOME_PATH, LINK_ERROR_PATH } from "@/lib/auth/routes";
 import { createClient } from "@/lib/supabase/server";
 
 /** Destino do link de confirmação de e-mail: troca o código por uma sessão. */
@@ -15,5 +15,5 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}${HOME_PATH}`);
     }
   }
-  return NextResponse.redirect(`${origin}${LOGIN_PATH}?erro=link`);
+  return NextResponse.redirect(`${origin}${LINK_ERROR_PATH}`);
 }

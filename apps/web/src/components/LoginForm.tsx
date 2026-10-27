@@ -3,6 +3,9 @@
 import { type FormEvent, useState } from "react";
 
 import { authErrorMessage } from "@/lib/auth/messages";
+import { PASSWORD_MIN_LENGTH, passwordProblem } from "@/lib/auth/password";
+
+import { PasswordChecklist } from "./PasswordChecklist";
 
 type AuthResult = { error: { code?: string } | null };
 
@@ -13,16 +16,32 @@ export type AuthActions = {
 
 type Feedback = { kind: "error" | "info"; text: string };
 
-export function LoginForm({ auth, onSignedIn }: { auth: AuthActions; onSignedIn: () => void }) {
+export function LoginForm({
+  auth,
+  onSignedIn,
+  notice,
+}: {
+  auth: AuthActions;
+  onSignedIn: () => void;
+  notice?: string;
+}) {
   const [mode, setMode] = useState<"entrar" | "cadastrar">("entrar");
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [password, setPassword] = useState("");
+  const [feedback, setFeedback] = useState<Feedback | null>(
+    notice ? { kind: "info", text: notice } : null,
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email"));
-    const password = String(form.get("password"));
+
+    const problem = mode === "cadastrar" ? passwordProblem(password) : null;
+    if (problem) {
+      setFeedback({ kind: "error", text: problem });
+      return;
+    }
 
     setBusy(true);
     setFeedback(null);
@@ -56,11 +75,14 @@ export function LoginForm({ auth, onSignedIn }: { auth: AuthActions; onSignedIn:
           name="password"
           type="password"
           autoComplete={isLogin ? "current-password" : "new-password"}
-          minLength={8}
+          minLength={PASSWORD_MIN_LENGTH}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           required
           style={{ width: "100%" }}
         />
       </label>
+      {!isLogin && <PasswordChecklist password={password} />}
       <button type="submit" disabled={busy}>
         {busy ? "Aguarde…" : isLogin ? "Entrar" : "Criar conta"}
       </button>

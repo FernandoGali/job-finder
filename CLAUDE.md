@@ -45,8 +45,11 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 - Feito: fase 0 — estrutura do monorepo, `/health` na API, página inicial no Next.js, testes e CI verdes.
 - Feito: projeto Supabase criado (São Paulo; Data API ligada, exposição automática de tabelas desligada, RLS automático ligado). Chaves no `.env` da raiz, que a API e o Next.js leem.
 - Feito: login parte 1 — `/entrar` (e-mail e senha), `/auth/callback`, `/minha-area` protegida pelo middleware. Testado à mão pelo Fernando.
-- Próximo: confirmação de e-mail resistente a robôs de link do Outlook/Hotmail (página com botão + `token_hash`, trocar o modelo de e-mail no Supabase) e aviso de `?erro=link` no `/entrar`. Depois: parte 2 (API valida o token do Supabase) e parte 3 (upload do currículo com consentimento LGPD).
-- Pendente: secrets no GitHub quando o CI precisar do Supabase; SMTP próprio antes de abrir para usuários (o e-mail grátis do Supabase só envia para a equipe).
+- Feito: confirmação de e-mail por botão em `/auth/confirmar` (resistente aos robôs de link do Outlook/Hotmail), aviso de `?erro=link` no `/entrar`, regra de senha com checklist ao vivo no cadastro. Testado à mão pelo Fernando.
+- Próximo: login parte 2 (API valida o token do Supabase) e parte 3 (upload do currículo com consentimento LGPD).
+- E-mail: Supabase envia pelo Resend (SMTP), remetente provisório `onboarding@resend.dev`, que só entrega no e-mail do dono da conta Resend. Modelo "Confirm sign up" aponta para `/auth/confirmar?token_hash=…&type=email` (confirmação só no clique do botão, por causa dos robôs de link do Outlook).
+- Senha: mínimo 8 caracteres, com minúscula, maiúscula e número (escolha do Fernando), no Supabase e na tela (`lib/auth/password.ts`). As duas regras precisam andar juntas.
+- Pendente: secrets no GitHub quando o CI precisar do Supabase; domínio próprio no Resend antes de abrir para usuários (aí criar uma chave restrita ao domínio e apagar a atual); bloqueio de senhas vazadas (só no plano pago do Supabase); trocar Site URL e Redirect URLs do Supabase para o domínio de produção.
 
 ## Comandos
 

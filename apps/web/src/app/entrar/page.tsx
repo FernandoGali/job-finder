@@ -1,34 +1,20 @@
-"use client";
+import { EntrarForm } from "./EntrarForm";
 
-import { useRouter } from "next/navigation";
-
-import { type AuthActions, LoginForm } from "@/components/LoginForm";
-import { HOME_PATH } from "@/lib/auth/routes";
-import { createClient } from "@/lib/supabase/client";
-
-// O cliente só é criado no clique: no build não existe .env nem navegador.
-const auth: AuthActions = {
-  signIn: (email, password) => createClient().auth.signInWithPassword({ email, password }),
-  signUp: (email, password) =>
-    createClient().auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    }),
+const NOTICES: Record<string, string> = {
+  link:
+    "O link de confirmação não funcionou ou já foi usado. Se você já confirmou seu e-mail, é só " +
+    "entrar. Se não, crie a conta de novo com o mesmo e-mail para receber outro link.",
 };
 
-export default function EntrarPage() {
-  const router = useRouter();
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function EntrarPage({ searchParams }: Props) {
+  const { erro } = await searchParams;
+  const notice = typeof erro === "string" ? NOTICES[erro] : undefined;
 
   return (
     <main style={{ maxWidth: 640, margin: "64px auto", padding: "0 16px", fontFamily: "system-ui" }}>
-      <LoginForm
-        auth={auth}
-        onSignedIn={() => {
-          router.replace(HOME_PATH);
-          router.refresh();
-        }}
-      />
+      <EntrarForm notice={notice} />
     </main>
   );
 }
