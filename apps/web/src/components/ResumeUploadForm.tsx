@@ -48,7 +48,9 @@ export function ResumeUploadForm({
     }
     setFeedback({
       kind: "info",
-      text: result.notice ?? `Currículo "${result.resume.original_filename}" enviado!`,
+      text:
+        `Currículo "${result.resume.original_filename}" enviado! ` +
+        'Clique em "Analisar com IA" para ver o que a IA leu nele.',
     });
     setFile(null);
     form.reset();
@@ -80,7 +82,7 @@ export function ResumeUploadForm({
         <span>{CONSENT_TEXT}</span>
       </label>
       <button type="submit" disabled={!ready || busy}>
-        {busy ? "Enviando e analisando…" : "Enviar currículo"}
+        {busy ? "Enviando…" : "Enviar currículo"}
       </button>
       {feedback && <p role={feedback.kind === "error" ? "alert" : "status"}>{feedback.text}</p>}
     </form>

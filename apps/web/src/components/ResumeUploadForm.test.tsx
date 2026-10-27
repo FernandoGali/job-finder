@@ -57,6 +57,7 @@ describe("ResumeUploadForm", () => {
     await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(resume));
     expect(upload).toHaveBeenCalledWith(file);
     expect(screen.getByRole("status")).toHaveTextContent('Currículo "cv.pdf" enviado!');
+    expect(screen.getByRole("status")).toHaveTextContent("Analisar com IA");
   });
 
   it("avisa na hora quando o formato não é aceito", () => {
@@ -78,17 +79,5 @@ describe("ResumeUploadForm", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("O arquivo passa de 5 MB.");
     expect(onUploaded).not.toHaveBeenCalled();
-  });
-});
-
-describe("ResumeUploadForm com aviso", () => {
-  it("mostra o aviso devolvido junto com o envio", async () => {
-    setup({ state: "ok", resume, notice: "Currículo enviado, mas a análise não deu certo." });
-    chooseFile();
-    fireEvent.click(consentBox());
-
-    fireEvent.click(sendButton());
-
-    expect(await screen.findByRole("status")).toHaveTextContent("a análise não deu certo");
   });
 });

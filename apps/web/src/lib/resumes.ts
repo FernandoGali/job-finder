@@ -38,10 +38,7 @@ export type Resume = {
   profile?: (Profile & { analyzed_at: string }) | null;
 };
 
-/** notice: aviso extra para mostrar depois do envio (ex.: a análise falhou). */
-export type UploadResult =
-  | { state: "ok"; resume: Resume; notice?: string }
-  | { state: "error"; message: string };
+export type UploadResult = { state: "ok"; resume: Resume } | { state: "error"; message: string };
 
 export type AnalysisResult = { state: "ok"; profile: Profile } | { state: "error"; message: string };
 
