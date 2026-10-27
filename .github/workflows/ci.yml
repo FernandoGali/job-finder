@@ -34,6 +34,21 @@ jobs:
       - name: Testes
         run: pytest
 
+  db:
+    name: Banco (Supabase)
+    # Sobe um Supabase descartável, aplica supabase/migrations e roda supabase/tests.
+    # Não usa o projeto real nem nenhuma chave.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Subir Supabase local
+        run: supabase start
+      - name: Testes das regras de acesso
+        run: supabase test db
+
   web:
     name: Web (Next.js)
     runs-on: ubuntu-latest
