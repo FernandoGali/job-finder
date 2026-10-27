@@ -32,6 +32,7 @@ def answer(**overrides: Any) -> dict[str, Any]:
         "seniority_reason": "4 anos de experiência.",
         "skills": ["Python", "SQL", "Power BI", "C++"],
         "certifications": ["Fundamentos do Python 1", "Linux Unhatched"],
+        "search_terms": ["Analista de Dados", "Analista de BI"],
         "summary": "Analista de BI com 4 anos de experiência.",
         **overrides,
     }
@@ -70,6 +71,7 @@ async def test_extrai_o_perfil_do_curriculo():
         "seniority": "pleno",
         "skills": ["Python", "SQL", "Power BI", "C++"],
         "certifications": ["Fundamentos do Python 1", "Linux Unhatched"],
+        "search_terms": ["Analista de Dados", "Analista de BI"],
         "summary": "Analista de BI com 4 anos de experiência.",
     }
 
@@ -205,3 +207,39 @@ async def test_pedido_explica_o_que_vai_em_cursos_e_certificacoes():
     [request] = fake.requests
     assert "certifications" in request["output_config"]["format"]["schema"]["required"]
     assert "Não inclua formação acadêmica" in request["system"]
+
+
+async def test_termos_de_busca_curtos_e_sem_ou_virgulas_ou_parenteses():
+    terms = [
+        "Analista de Dados",
+        "Estágio ou Júnior em Análise de Dados",  # tem "ou"
+        "Analista de Dados, BI",  # vírgula
+        "Analista de BI (Júnior)",  # parênteses
+        "Dados/BI",  # barra
+        "Analista Júnior de Dados e Business Intelligence",  # longo demais
+        "  analista   de dados ",  # repetido
+        "Analista de BI",
+        "Estágio em Análise de Dados",
+        "Cientista de Dados Júnior",
+        "Engenheiro de Dados",  # passaria do limite de 4
+    ]
+    fake = FakeClaude(json.dumps(answer(search_terms=terms)))
+
+    result = await analyze(fake)
+
+    assert result.profile.search_terms == [
+        "Analista de Dados",
+        "Analista de BI",
+        "Estágio em Análise de Dados",
+        "Cientista de Dados Júnior",
+    ]
+
+
+async def test_pedido_explica_os_termos_de_busca():
+    fake = FakeClaude(json.dumps(answer()))
+
+    await analyze(fake)
+
+    [request] = fake.requests
+    assert "search_terms" in request["output_config"]["format"]["schema"]["required"]
+    assert 'sem "ou", vírgulas, barras nem' in request["system"]

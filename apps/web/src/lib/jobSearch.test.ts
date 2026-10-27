@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { searchLinks, slugify } from "./jobSearch";
+import { type SearchOptions, searchLinks, slugify } from "./jobSearch";
 
-function urlOf(site: string, query: string, location = "") {
-  return searchLinks(query, location).find((link) => link.site === site)?.url;
+function urlOf(site: string, query: string, options: SearchOptions = {}) {
+  return searchLinks(query, options).find((link) => link.site === site)?.url;
 }
 
 describe("slugify", () => {
@@ -15,14 +15,12 @@ describe("slugify", () => {
 
 describe("searchLinks", () => {
   it("monta a busca de cada site com o termo e o local", () => {
-    expect(urlOf("LinkedIn", "Analista de Dados", "São Paulo")).toBe(
+    const options = { location: "São Paulo" };
+    expect(urlOf("LinkedIn", "Analista de Dados", options)).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=S%C3%A3o%20Paulo",
     );
-    expect(urlOf("Indeed", "Analista de Dados", "São Paulo")).toBe(
+    expect(urlOf("Indeed", "Analista de Dados", options)).toBe(
       "https://br.indeed.com/jobs?q=Analista%20de%20Dados&l=S%C3%A3o%20Paulo",
-    );
-    expect(urlOf("Glassdoor", "Analista de Dados")).toBe(
-      "https://www.glassdoor.com.br/Vaga/vagas.htm?sc.keyword=Analista%20de%20Dados",
     );
     expect(urlOf("Gupy", "Analista de Dados")).toBe(
       "https://portal.gupy.io/job-search/term=Analista%20de%20Dados",
@@ -38,11 +36,34 @@ describe("searchLinks", () => {
     );
   });
 
+  it("não tem mais o Glassdoor (o link não preenchia a busca)", () => {
+    expect(searchLinks("Analista de Dados").map((link) => link.site)).not.toContain("Glassdoor");
+  });
+
   it("não coloca o local quando ele está vazio", () => {
-    expect(urlOf("LinkedIn", "Analista de Dados", "   ")).toBe(
+    expect(urlOf("LinkedIn", "Analista de Dados", { location: "   " })).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados",
     );
     expect(urlOf("Indeed", "Analista de Dados")).toBe("https://br.indeed.com/jobs?q=Analista%20de%20Dados");
+  });
+
+  it("só remotas: filtro oficial no LinkedIn (no Brasil) e a palavra remoto nos outros", () => {
+    const remote = { remote: true };
+    expect(urlOf("LinkedIn", "Analista de Dados", remote)).toBe(
+      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=Brasil&f_WT=2",
+    );
+    expect(urlOf("LinkedIn", "Analista de Dados", { remote: true, location: "Minas Gerais" })).toBe(
+      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=Minas%20Gerais&f_WT=2",
+    );
+    expect(urlOf("Indeed", "Analista de Dados", remote)).toBe(
+      "https://br.indeed.com/jobs?q=Analista%20de%20Dados%20remoto",
+    );
+    expect(urlOf("Gupy", "Analista de Dados", remote)).toBe(
+      "https://portal.gupy.io/job-search/term=Analista%20de%20Dados%20remoto",
+    );
+    expect(urlOf("Vagas.com.br", "Analista de Dados", remote)).toBe(
+      "https://www.vagas.com.br/vagas-de-analista-de-dados-remoto",
+    );
   });
 
   it("limpa espaços repetidos e protege caracteres especiais", () => {

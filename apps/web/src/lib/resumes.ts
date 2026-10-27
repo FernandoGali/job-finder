@@ -27,6 +27,7 @@ export type Profile = {
   seniority: Seniority | null;
   skills: string[];
   certifications: string[];
+  search_terms: string[];
   summary: string;
 };
 

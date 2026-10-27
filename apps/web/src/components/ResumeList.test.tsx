@@ -74,6 +74,7 @@ describe("ResumeList com análise", () => {
         seniority: "pleno" as const,
         skills: ["SQL"],
         certifications: [],
+        search_terms: ["Analista de Dados"],
         summary: "",
         analyzed_at: "2026-10-27T18:31:00Z",
       },

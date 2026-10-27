@@ -16,6 +16,8 @@ from pydantic import BaseModel, ValidationError
 MODEL = "claude-opus-5-5"
 MAX_SKILLS = 30
 MAX_CERTIFICATIONS = 15
+MAX_SEARCH_TERMS = 4
+MAX_SEARCH_TERM_WORDS = 5
 
 Seniority = Literal["estagio", "junior", "pleno", "senior", "especialista", "gestao"]
 SENIORITIES = ["estagio", "junior", "pleno", "senior", "especialista", "gestao"]
@@ -42,6 +44,10 @@ competência (ex.: "Fundamentos do Python 1" não entra; "Python" entra se apare
 - certifications: nomes de cursos, treinamentos e certificações citados, escritos exatamente \
 como aparecem no currículo, sem repetir, no máximo 15. Não inclua formação acadêmica \
 (graduação, pós, MBA) nem competências soltas.
+- search_terms: de 2 a 4 termos curtos para buscar vagas para esta pessoa em sites de \
+emprego no Brasil, do mais adequado ao menos, coerentes com o cargo-alvo e a senioridade. \
+Cada termo tem de 2 a 5 palavras, como um título de vaga, sem "ou", vírgulas, barras nem \
+parênteses (ex.: "Analista de Dados", "Estágio em Análise de Dados", "Analista de BI").
 - summary: uma ou duas frases em português resumindo a experiência, só com fatos do currículo.\
 """
 
@@ -54,6 +60,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "seniority_reason": {"type": "string"},
         "skills": {"type": "array", "items": {"type": "string"}},
         "certifications": {"type": "array", "items": {"type": "string"}},
+        "search_terms": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
     },
     "required": [
@@ -63,6 +70,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "seniority_reason",
         "skills",
         "certifications",
+        "search_terms",
         "summary",
     ],
     "additionalProperties": False,
@@ -74,6 +82,7 @@ class ResumeProfile(BaseModel):
     seniority: Seniority | None
     skills: list[str]
     certifications: list[str]
+    search_terms: list[str]
     summary: str
 
 
@@ -126,6 +135,31 @@ def _found_in(items: list[str], haystack: str, limit: int) -> list[str]:
     return found[:limit]
 
 
+def clean_search_terms(terms: list[str]) -> list[str]:
+    """Termos que funcionam em sites de vaga: curtos, sem "ou", vírgulas, barras ou parênteses.
+
+    Diferente das competências, os termos não precisam estar escritos no currículo: são a
+    tradução do perfil para a busca. Por isso a conferência aqui é de formato.
+    """
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for term in terms:
+        term = re.sub(r"\s+", " ", term).strip()
+        words = term.split(" ")
+        if (
+            not term
+            or len(words) > MAX_SEARCH_TERM_WORDS
+            or re.search(r"[,/()|]", term)
+            or "ou" in (word.casefold() for word in words)
+        ):
+            continue
+        key = _normalize(term)
+        if key not in seen:
+            seen.add(key)
+            cleaned.append(term)
+    return cleaned[:MAX_SEARCH_TERMS]
+
+
 def ground_in_resume(raw: _RawProfile, resume_text: str) -> ResumeProfile:
     """Mantém só o que dá para encontrar no currículo."""
     haystack = _normalize(resume_text)
@@ -138,6 +172,7 @@ def ground_in_resume(raw: _RawProfile, resume_text: str) -> ResumeProfile:
         seniority=raw.seniority,
         skills=_found_in(raw.skills, haystack, MAX_SKILLS),
         certifications=_found_in(raw.certifications, haystack, MAX_CERTIFICATIONS),
+        search_terms=clean_search_terms(raw.search_terms),
         summary=raw.summary.strip(),
     )
 

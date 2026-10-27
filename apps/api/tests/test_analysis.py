@@ -23,6 +23,7 @@ PROFILE = ResumeProfile(
     seniority="pleno",
     skills=["Python", "SQL"],
     certifications=["Fundamentos do Python 1"],
+    search_terms=["Analista de Dados"],
     summary="Resumo.",
 )
 

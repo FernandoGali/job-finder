@@ -61,7 +61,7 @@ export function ResumeList({ result }: { result: ResumesResult }) {
           </details>
         )}
       </section>
-      {latest.profile && <JobSearchLinks initialQuery={latest.profile.target_role ?? ""} />}
+      {latest.profile && <JobSearchLinks suggestions={latest.profile.search_terms} />}
     </>
   );
 }

@@ -198,6 +198,7 @@ async def test_lista_curriculos_com_o_perfil_junto():
 
     assert "profile:resume_profiles(" in requests[0].url.params["select"]
     assert "certifications" in requests[0].url.params["select"]
+    assert "search_terms" in requests[0].url.params["select"]
 
 
 async def test_admin_grava_ou_substitui_o_perfil():

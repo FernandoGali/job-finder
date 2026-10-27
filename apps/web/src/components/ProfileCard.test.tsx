@@ -12,6 +12,7 @@ describe("ProfileCard", () => {
           seniority: "senior",
           skills: ["Python", "SQL"],
           certifications: ["Fundamentos do Python 1"],
+          search_terms: [],
           summary: "Seis anos com dados.",
         }}
       />,
@@ -28,7 +29,7 @@ describe("ProfileCard", () => {
   });
 
   it("diz quando a IA não identificou algo, em vez de inventar", () => {
-    render(<ProfileCard profile={{ target_role: null, seniority: null, skills: [], certifications: [], summary: "" }} />);
+    render(<ProfileCard profile={{ target_role: null, seniority: null, skills: [], certifications: [], search_terms: [], summary: "" }} />);
 
     const card = screen.getByRole("region", { name: "Perfil lido pela IA" });
     expect(card).toHaveTextContent("Não identificado no currículo");

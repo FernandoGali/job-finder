@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(6);
+select plan(7);
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'ana@exemplo.com'),
@@ -23,6 +23,11 @@ insert into public.resumes (id, user_id, consent_id, storage_path, original_file
 select has_column(
   'public', 'resume_profiles', 'certifications',
   'o perfil tem um campo próprio para cursos e certificações'
+);
+
+select has_column(
+  'public', 'resume_profiles', 'search_terms',
+  'o perfil guarda os termos sugeridos para buscar vagas'
 );
 
 -- Gravado como a API grava (papel de serviço).

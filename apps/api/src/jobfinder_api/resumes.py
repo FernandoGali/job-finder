@@ -34,6 +34,7 @@ class ProfileOut(BaseModel):
     seniority: str | None
     skills: list[str]
     certifications: list[str] = []
+    search_terms: list[str] = []
     summary: str
     analyzed_at: datetime
 
