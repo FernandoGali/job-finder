@@ -43,7 +43,10 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 ## Estado atual e próximo passo
 
 - Feito: fase 0 — estrutura do monorepo, `/health` na API, página inicial no Next.js, testes e CI verdes.
-- Próximo: criar o projeto no Supabase (o Fernando cria a conta), configurar as chaves no `.env` e nos secrets, e implementar login + upload do currículo, com testes.
+- Feito: projeto Supabase criado (São Paulo; Data API ligada, exposição automática de tabelas desligada, RLS automático ligado). Chaves no `.env` da raiz, que a API e o Next.js leem.
+- Feito: login parte 1 — `/entrar` (e-mail e senha), `/auth/callback`, `/minha-area` protegida pelo middleware. Testado à mão pelo Fernando.
+- Próximo: confirmação de e-mail resistente a robôs de link do Outlook/Hotmail (página com botão + `token_hash`, trocar o modelo de e-mail no Supabase) e aviso de `?erro=link` no `/entrar`. Depois: parte 2 (API valida o token do Supabase) e parte 3 (upload do currículo com consentimento LGPD).
+- Pendente: secrets no GitHub quando o CI precisar do Supabase; SMTP próprio antes de abrir para usuários (o e-mail grátis do Supabase só envia para a equipe).
 
 ## Comandos
 
