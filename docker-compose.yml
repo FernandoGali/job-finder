@@ -1,0 +1,25 @@
+# Serviços de apoio para desenvolvimento local.
+# Em produção usamos o Supabase; aqui um Postgres com pgvector imita o mesmo banco.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: jobfinder
+      POSTGRES_PASSWORD: jobfinder
+      POSTGRES_DB: jobfinder
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobfinder"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  db-data:
