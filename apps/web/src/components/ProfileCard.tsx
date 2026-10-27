@@ -34,6 +34,16 @@ export function ProfileCard({ profile }: { profile: Profile }) {
       ) : (
         <p style={{ margin: 0 }}>Nenhuma competência identificada.</p>
       )}
+      {profile.certifications.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: "0.9em", margin: "4px 0" }}>Cursos e certificações</h3>
+          <ul aria-label="Cursos e certificações" style={{ margin: 0, paddingLeft: 20, fontSize: "0.9em" }}>
+            {profile.certifications.map((certification) => (
+              <li key={certification}>{certification}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {profile.summary && <p style={{ margin: 0, fontSize: "0.9em" }}>{profile.summary}</p>}
     </section>
   );

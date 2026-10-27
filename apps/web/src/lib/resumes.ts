@@ -26,6 +26,7 @@ export type Profile = {
   target_role: string | null;
   seniority: Seniority | null;
   skills: string[];
+  certifications: string[];
   summary: string;
 };
 

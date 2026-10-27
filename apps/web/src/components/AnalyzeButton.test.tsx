@@ -6,7 +6,7 @@ import { AnalyzeButton } from "./AnalyzeButton";
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
-const profile = { target_role: "Dev", seniority: "pleno" as const, skills: [], summary: "" };
+const profile = { target_role: "Dev", seniority: "pleno" as const, skills: [], certifications: [], summary: "" };
 
 describe("AnalyzeButton", () => {
   beforeEach(() => refresh.mockReset());

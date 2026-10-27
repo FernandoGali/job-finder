@@ -20,6 +20,7 @@ RESUME = """Maria Silva
 Objetivo: Analista de Dados Pleno
 Experiência: 4 anos como Analista de BI na Empresa X
 Ferramentas: Python, SQL, Power BI, C++
+Cursos: Fundamentos do Python 1 (Cisco), Linux Unhatched
 """
 
 
@@ -30,6 +31,7 @@ def answer(**overrides: Any) -> dict[str, Any]:
         "seniority": "pleno",
         "seniority_reason": "4 anos de experiência.",
         "skills": ["Python", "SQL", "Power BI", "C++"],
+        "certifications": ["Fundamentos do Python 1", "Linux Unhatched"],
         "summary": "Analista de BI com 4 anos de experiência.",
         **overrides,
     }
@@ -67,6 +69,7 @@ async def test_extrai_o_perfil_do_curriculo():
         "target_role": "Analista de Dados",
         "seniority": "pleno",
         "skills": ["Python", "SQL", "Power BI", "C++"],
+        "certifications": ["Fundamentos do Python 1", "Linux Unhatched"],
         "summary": "Analista de BI com 4 anos de experiência.",
     }
 
@@ -178,3 +181,27 @@ async def test_pedido_recusado_pela_api_vira_analysis_error():
 
     with pytest.raises(AnalysisError, match="HTTP 400"):
         await analyze(FakeClaude(error=error))
+
+
+async def test_cursos_ficam_separados_e_tambem_precisam_estar_no_curriculo():
+    fake = FakeClaude(
+        json.dumps(
+            answer(certifications=["Linux Unhatched", "AWS Cloud Practitioner", "linux unhatched"])
+        )
+    )
+
+    result = await analyze(fake)
+
+    # O curso inventado (AWS) sai; o repetido também.
+    assert result.profile.certifications == ["Linux Unhatched"]
+    assert "Linux Unhatched" not in result.profile.skills
+
+
+async def test_pedido_explica_o_que_vai_em_cursos_e_certificacoes():
+    fake = FakeClaude(json.dumps(answer()))
+
+    await analyze(fake)
+
+    [request] = fake.requests
+    assert "certifications" in request["output_config"]["format"]["schema"]["required"]
+    assert "Não inclua formação acadêmica" in request["system"]

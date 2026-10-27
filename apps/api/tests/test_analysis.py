@@ -19,7 +19,11 @@ from jobfinder_api.supabase_user import SupabaseError
 from tests.conftest import USER_ID, pdf_with_text
 
 PROFILE = ResumeProfile(
-    target_role="Analista de Dados", seniority="pleno", skills=["Python", "SQL"], summary="Resumo."
+    target_role="Analista de Dados",
+    seniority="pleno",
+    skills=["Python", "SQL"],
+    certifications=["Fundamentos do Python 1"],
+    summary="Resumo.",
 )
 
 

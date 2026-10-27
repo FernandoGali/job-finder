@@ -33,6 +33,7 @@ class ProfileOut(BaseModel):
     target_role: str | None
     seniority: str | None
     skills: list[str]
+    certifications: list[str] = []
     summary: str
     analyzed_at: datetime
 

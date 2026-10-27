@@ -112,7 +112,7 @@ describe("fetchResumes", () => {
 });
 
 describe("analyzeResume", () => {
-  const profile = { target_role: "Analista de Dados", seniority: "pleno", skills: ["SQL"], summary: "x" };
+  const profile = { target_role: "Analista de Dados", seniority: "pleno", skills: ["SQL"], certifications: [], summary: "x" };
 
   it("pede a análise com o token e devolve o perfil", async () => {
     const fetcher = vi.fn().mockResolvedValue(json(profile));

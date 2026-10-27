@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 
 MODEL = "claude-opus-5-5"
 MAX_SKILLS = 30
+MAX_CERTIFICATIONS = 15
 
 Seniority = Literal["estagio", "junior", "pleno", "senior", "especialista", "gestao"]
 SENIORITIES = ["estagio", "junior", "pleno", "senior", "especialista", "gestao"]
@@ -38,6 +39,9 @@ Explique a dedução em seniority_reason, em uma frase.
 exatamente como aparecem no currículo, sem repetir, no máximo 30, das mais relevantes para \
 o cargo-alvo às menos relevantes. Nome de curso, treinamento ou certificação não é \
 competência (ex.: "Fundamentos do Python 1" não entra; "Python" entra se aparecer no texto).
+- certifications: nomes de cursos, treinamentos e certificações citados, escritos exatamente \
+como aparecem no currículo, sem repetir, no máximo 15. Não inclua formação acadêmica \
+(graduação, pós, MBA) nem competências soltas.
 - summary: uma ou duas frases em português resumindo a experiência, só com fatos do currículo.\
 """
 
@@ -49,6 +53,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "seniority": {"anyOf": [{"type": "string", "enum": SENIORITIES}, {"type": "null"}]},
         "seniority_reason": {"type": "string"},
         "skills": {"type": "array", "items": {"type": "string"}},
+        "certifications": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
     },
     "required": [
@@ -57,6 +62,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "seniority",
         "seniority_reason",
         "skills",
+        "certifications",
         "summary",
     ],
     "additionalProperties": False,
@@ -67,6 +73,7 @@ class ResumeProfile(BaseModel):
     target_role: str | None
     seniority: Seniority | None
     skills: list[str]
+    certifications: list[str]
     summary: str
 
 
@@ -107,6 +114,18 @@ def _appears(needle: str, haystack: str) -> bool:
     return bool(needle) and re.search(pattern, haystack) is not None
 
 
+def _found_in(items: list[str], haystack: str, limit: int) -> list[str]:
+    """Só os itens que aparecem no currículo, sem repetir, até o limite."""
+    found: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        key = _normalize(item)
+        if _appears(key, haystack) and key not in seen:
+            seen.add(key)
+            found.append(item.strip())
+    return found[:limit]
+
+
 def ground_in_resume(raw: _RawProfile, resume_text: str) -> ResumeProfile:
     """Mantém só o que dá para encontrar no currículo."""
     haystack = _normalize(resume_text)
@@ -114,18 +133,11 @@ def ground_in_resume(raw: _RawProfile, resume_text: str) -> ResumeProfile:
     evidence = raw.target_role_evidence
     target_role = raw.target_role if evidence and _appears(_normalize(evidence), haystack) else None
 
-    skills: list[str] = []
-    seen: set[str] = set()
-    for skill in raw.skills:
-        key = _normalize(skill)
-        if _appears(key, haystack) and key not in seen:
-            seen.add(key)
-            skills.append(skill.strip())
-
     return ResumeProfile(
         target_role=target_role.strip() if target_role else None,
         seniority=raw.seniority,
-        skills=skills[:MAX_SKILLS],
+        skills=_found_in(raw.skills, haystack, MAX_SKILLS),
+        certifications=_found_in(raw.certifications, haystack, MAX_CERTIFICATIONS),
         summary=raw.summary.strip(),
     )
 

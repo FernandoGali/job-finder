@@ -11,6 +11,7 @@ describe("ProfileCard", () => {
           target_role: "Analista de Dados",
           seniority: "senior",
           skills: ["Python", "SQL"],
+          certifications: ["Fundamentos do Python 1"],
           summary: "Seis anos com dados.",
         }}
       />,
@@ -22,14 +23,17 @@ describe("ProfileCard", () => {
     const skills = within(screen.getByRole("list", { name: "Competências" })).getAllByRole("listitem");
     expect(skills.map((item) => item.textContent)).toEqual(["Python", "SQL"]);
     expect(card).toHaveTextContent("Seis anos com dados.");
+    const courses = within(screen.getByRole("list", { name: "Cursos e certificações" })).getAllByRole("listitem");
+    expect(courses.map((item) => item.textContent)).toEqual(["Fundamentos do Python 1"]);
   });
 
   it("diz quando a IA não identificou algo, em vez de inventar", () => {
-    render(<ProfileCard profile={{ target_role: null, seniority: null, skills: [], summary: "" }} />);
+    render(<ProfileCard profile={{ target_role: null, seniority: null, skills: [], certifications: [], summary: "" }} />);
 
     const card = screen.getByRole("region", { name: "Perfil lido pela IA" });
     expect(card).toHaveTextContent("Não identificado no currículo");
     expect(card).toHaveTextContent("Não deu para deduzir");
     expect(card).toHaveTextContent("Nenhuma competência identificada.");
+    expect(screen.queryByRole("list", { name: "Cursos e certificações" })).not.toBeInTheDocument();
   });
 });
