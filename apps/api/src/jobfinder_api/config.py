@@ -1,13 +1,18 @@
 """Configuração lida de variáveis de ambiente (nunca de valores fixos no código)."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# O .env fica na raiz do monorepo, não em apps/api. Na hospedagem o arquivo não
+# existe e as variáveis vêm do ambiente.
+ROOT_ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
     app_env: Literal["development", "staging", "production"] = "development"
     supabase_url: str = ""
@@ -22,4 +27,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings(_env_file=ROOT_ENV_FILE)
