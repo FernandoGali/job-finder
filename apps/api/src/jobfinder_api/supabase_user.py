@@ -50,6 +50,16 @@ class SupabaseAdminClient(_SupabaseHttp):
     async def delete_user(self, user_id: str) -> None:
         await self._request("DELETE", f"/auth/v1/admin/users/{user_id}")
 
+    async def save_profile(self, row: dict[str, Any]) -> None:
+        """Grava (ou substitui) o perfil de um currículo. Só a API grava perfis."""
+        await self._request(
+            "POST",
+            "/rest/v1/resume_profiles",
+            params={"on_conflict": "resume_id"},
+            json=row,
+            headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+        )
+
 
 class SupabaseUserClient(_SupabaseHttp):
     def __init__(
@@ -84,7 +94,10 @@ class SupabaseUserClient(_SupabaseHttp):
             "GET",
             "/rest/v1/resumes",
             params={
-                "select": "id,original_filename,content_type,size_bytes,uploaded_at",
+                "select": (
+                    "id,original_filename,content_type,size_bytes,uploaded_at,"
+                    "profile:resume_profiles(target_role,seniority,skills,summary,analyzed_at)"
+                ),
                 "order": "uploaded_at.desc",
             },
         )
@@ -99,6 +112,20 @@ class SupabaseUserClient(_SupabaseHttp):
         )
         rows = response.json()
         return rows[0]["storage_path"] if rows else None
+
+    async def get_resume_file(self, resume_id: str) -> dict[str, str] | None:
+        """Caminho e tipo do arquivo, ou None se o currículo não existe (ou não é seu)."""
+        response = await self._request(
+            "GET",
+            "/rest/v1/resumes",
+            params={"id": f"eq.{resume_id}", "select": "storage_path,content_type"},
+        )
+        rows = response.json()
+        return rows[0] if rows else None
+
+    async def download(self, path: str) -> bytes:
+        response = await self._request("GET", f"/storage/v1/object/authenticated/{BUCKET}/{path}")
+        return response.content
 
     async def delete_resume(self, resume_id: str) -> None:
         await self._request("DELETE", "/rest/v1/resumes", params={"id": f"eq.{resume_id}"})

@@ -11,15 +11,39 @@ export const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = [".pdf", ".docx"];
 export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.join(",");
 
+export type Seniority = "estagio" | "junior" | "pleno" | "senior" | "especialista" | "gestao";
+
+export const SENIORITY_LABELS: Record<Seniority, string> = {
+  estagio: "Estágio",
+  junior: "Júnior",
+  pleno: "Pleno",
+  senior: "Sênior",
+  especialista: "Especialista",
+  gestao: "Gestão",
+};
+
+export type Profile = {
+  target_role: string | null;
+  seniority: Seniority | null;
+  skills: string[];
+  summary: string;
+};
+
 export type Resume = {
   id: string;
   original_filename: string;
   content_type: string;
   size_bytes: number;
   uploaded_at: string;
+  profile?: (Profile & { analyzed_at: string }) | null;
 };
 
-export type UploadResult = { state: "ok"; resume: Resume } | { state: "error"; message: string };
+/** notice: aviso extra para mostrar depois do envio (ex.: a análise falhou). */
+export type UploadResult =
+  | { state: "ok"; resume: Resume; notice?: string }
+  | { state: "error"; message: string };
+
+export type AnalysisResult = { state: "ok"; profile: Profile } | { state: "error"; message: string };
 
 export type ResumesResult = { state: "ok"; resumes: Resume[] } | { state: "error"; message: string };
 
@@ -76,6 +100,27 @@ export async function fetchResumes(
     });
     if (response.ok) {
       return { state: "ok", resumes: (await response.json()) as Resume[] };
+    }
+    return { state: "error", message: await apiErrorMessage(response) };
+  } catch {
+    return { state: "error", message: API_OFFLINE };
+  }
+}
+
+/** Pede à API a leitura do currículo pela IA. Pode levar alguns segundos. */
+export async function analyzeResume(
+  accessToken: string,
+  resumeId: string,
+  fetcher: typeof fetch = fetch,
+  baseUrl: string = apiBaseUrl(),
+): Promise<AnalysisResult> {
+  try {
+    const response = await fetcher(`${baseUrl}/curriculos/${resumeId}/analise`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (response.ok) {
+      return { state: "ok", profile: (await response.json()) as Profile };
     }
     return { state: "error", message: await apiErrorMessage(response) };
   } catch {

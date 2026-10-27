@@ -29,12 +29,21 @@ DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 EXTENSIONS = {PDF: "pdf", DOCX: "docx"}
 
 
+class ProfileOut(BaseModel):
+    target_role: str | None
+    seniority: str | None
+    skills: list[str]
+    summary: str
+    analyzed_at: datetime
+
+
 class ResumeOut(BaseModel):
     id: str
     original_filename: str
     content_type: str
     size_bytes: int
     uploaded_at: datetime
+    profile: ProfileOut | None = None
 
 
 class ResumeStore(Protocol):
@@ -44,6 +53,8 @@ class ResumeStore(Protocol):
     async def add_resume(self, resume: dict[str, Any]) -> dict[str, Any]: ...
     async def list_resumes(self) -> list[dict[str, Any]]: ...
     async def get_resume_path(self, resume_id: str) -> str | None: ...
+    async def get_resume_file(self, resume_id: str) -> dict[str, str] | None: ...
+    async def download(self, path: str) -> bytes: ...
     async def delete_resume(self, resume_id: str) -> None: ...
     async def list_files(self, user_id: str) -> list[str]: ...
     async def delete_files(self, paths: list[str]) -> None: ...

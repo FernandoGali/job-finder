@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { fetchResumes, fileProblem, MAX_BYTES, uploadResume } from "./resumes";
+import { analyzeResume, fetchResumes, fileProblem, MAX_BYTES, uploadResume } from "./resumes";
 
 const resume = {
   id: "r-1",
@@ -108,5 +108,37 @@ describe("fetchResumes", () => {
     const fetcher = vi.fn().mockRejectedValue(new Error("connection refused"));
 
     expect((await fetchResumes("t", fetcher, "http://api.test")).state).toBe("error");
+  });
+});
+
+describe("analyzeResume", () => {
+  const profile = { target_role: "Analista de Dados", seniority: "pleno", skills: ["SQL"], summary: "x" };
+
+  it("pede a análise com o token e devolve o perfil", async () => {
+    const fetcher = vi.fn().mockResolvedValue(json(profile));
+
+    expect(await analyzeResume("token-abc", "r-1", fetcher, "http://api.test")).toEqual({
+      state: "ok",
+      profile,
+    });
+    expect(fetcher).toHaveBeenCalledWith("http://api.test/curriculos/r-1/analise", {
+      method: "POST",
+      headers: { Authorization: "Bearer token-abc" },
+    });
+  });
+
+  it("devolve a mensagem da API quando a análise falha", async () => {
+    const fetcher = vi.fn().mockResolvedValue(json({ detail: "Não conseguimos ler o texto." }, 422));
+
+    expect(await analyzeResume("t", "r-1", fetcher, "http://api.test")).toEqual({
+      state: "error",
+      message: "Não conseguimos ler o texto.",
+    });
+  });
+
+  it("avisa sem lançar erro quando a API está fora do ar", async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error("connection refused"));
+
+    expect((await analyzeResume("t", "r-1", fetcher, "http://api.test")).state).toBe("error");
   });
 });

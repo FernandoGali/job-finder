@@ -166,3 +166,55 @@ async def test_admin_apaga_a_conta_com_a_chave_secreta():
     assert str(request.url) == f"{URL}/auth/v1/admin/users/u-1"
     assert request.headers["apikey"] == "chave-secreta"
     assert request.headers["Authorization"] == "Bearer chave-secreta"
+
+
+async def test_busca_arquivo_e_tipo_do_curriculo():
+    row = {"storage_path": "u-1/a.pdf", "content_type": "application/pdf"}
+    client, requests = make_client(lambda r: httpx.Response(200, json=[row]))
+
+    assert await client.get_resume_file("r-1") == row
+    assert requests[0].url.params["select"] == "storage_path,content_type"
+    assert_acts_as_user(requests[0])
+
+
+async def test_arquivo_de_curriculo_inexistente_e_none():
+    client, _ = make_client(lambda r: httpx.Response(200, json=[]))
+
+    assert await client.get_resume_file("r-1") is None
+
+
+async def test_baixa_o_arquivo_em_nome_do_usuario():
+    client, requests = make_client(lambda r: httpx.Response(200, content=b"%PDF-"))
+
+    assert await client.download("u-1/a.pdf") == b"%PDF-"
+    assert str(requests[0].url) == f"{URL}/storage/v1/object/authenticated/curriculos/u-1/a.pdf"
+    assert_acts_as_user(requests[0])
+
+
+async def test_lista_curriculos_com_o_perfil_junto():
+    client, requests = make_client(lambda r: httpx.Response(200, json=[]))
+
+    await client.list_resumes()
+
+    assert "profile:resume_profiles(" in requests[0].url.params["select"]
+
+
+async def test_admin_grava_ou_substitui_o_perfil():
+    requests: list[httpx.Request] = []
+
+    def capture(request):
+        requests.append(request)
+        return httpx.Response(201)
+
+    admin = SupabaseAdminClient(
+        URL, "chave-secreta", httpx.AsyncClient(transport=httpx.MockTransport(capture))
+    )
+
+    await admin.save_profile({"resume_id": "r-1", "skills": ["SQL"]})
+
+    [request] = requests
+    assert request.url.path == "/rest/v1/resume_profiles"
+    assert request.url.params["on_conflict"] == "resume_id"
+    assert request.headers["Prefer"] == "resolution=merge-duplicates,return=minimal"
+    assert json.loads(request.content) == {"resume_id": "r-1", "skills": ["SQL"]}
+    assert request.headers["apikey"] == "chave-secreta"

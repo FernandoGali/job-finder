@@ -50,7 +50,9 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 - Feito: parte 3a — tabelas `consents` e `resumes` e pasta privada `curriculos` no Storage, com RLS (cada usuário só acessa `<user_id>/...`). Aplicado no projeto real e conferido de fora (visitante não acessa nada).
 - Feito: parte 3b — `POST /curriculos` e `GET /curriculos` na API: login + consentimento (termo `v1`), PDF/DOCX até 5 MB detectados pelo conteúdo, nome aleatório no Storage, grava com o token do usuário (o RLS vale para a API).
 - Feito: parte 3c — Minha área com termo, envio e lista dos currículos; o navegador envia direto para a API. Testado de ponta a ponta pelo Fernando (arquivo no Storage e registro em `resumes`).
-- Próximo: decidir com o Fernando. Candidatos: excluir currículo e conta (LGPD; o termo já promete isso, precisa existir antes de abrir para usuários) ou a análise do currículo pela IA (extrair cargo, competências e senioridade).
+- Feito: excluir currículo (`DELETE /curriculos/{id}`: arquivo antes do registro) e conta (`DELETE /conta`: arquivos da pasta, depois a conta com a chave secreta; o resto vai em cascata). Na tela: botão Excluir com confirmação e seção que exige digitar EXCLUIR. Falta o teste à mão do Fernando.
+- Feito: análise pela IA — `POST /curriculos/{id}/analise` extrai o texto (pypdf / python-docx), pede ao Claude (`claude-opus-5-5`, saída em JSON Schema, effort `medium`, `fallbacks: "default"`) cargo-alvo, senioridade, competências e resumo, e confere tudo contra o texto (`ground_in_resume`: competência como palavra inteira, cargo só com evidência copiada do currículo). O perfil fica em `resume_profiles`, gravado só pela API com a chave secreta. A Minha área analisa logo depois do envio e tem o botão "Analisar com IA". Falta: o Fernando aplicar a migração `20261028120000_resume_profiles.sql`, criar a chave da Anthropic e testar.
+- Próximo: definir com o Fernando. Candidatos: busca de vagas (primeiro conector ou "busca pronta" com links montados a partir do perfil) e ranking.
 - Termo de consentimento: o texto fica em `apps/web/src/lib/resumes.ts`. Mudou o texto? Subir `CONSENT_VERSION` lá e na API (`resumes.py`) juntos.
 
 ## Banco de dados
@@ -60,7 +62,7 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 - Tabelas novas: sempre `enable row level security`, `revoke all ... from anon, authenticated` e `grant` só do necessário (a exposição automática de tabelas está desligada).
 - E-mail: Supabase envia pelo Resend (SMTP), remetente provisório `onboarding@resend.dev`, que só entrega no e-mail do dono da conta Resend. Modelo "Confirm sign up" aponta para `/auth/confirmar?token_hash=…&type=email` (confirmação só no clique do botão, por causa dos robôs de link do Outlook).
 - Senha: mínimo 8 caracteres, com minúscula, maiúscula e número (escolha do Fernando), no Supabase e na tela (`lib/auth/password.ts`). As duas regras precisam andar juntas.
-- Pendente: secrets no GitHub quando o CI precisar do Supabase; domínio próprio no Resend antes de abrir para usuários (aí criar uma chave restrita ao domínio e apagar a atual); bloqueio de senhas vazadas (só no plano pago do Supabase); trocar Site URL e Redirect URLs do Supabase para o domínio de produção.
+- Pendente: secrets no GitHub quando o CI precisar do Supabase; domínio próprio no Resend antes de abrir para usuários (aí criar uma chave restrita ao domínio e apagar a atual); bloqueio de senhas vazadas (só no plano pago do Supabase); trocar Site URL e Redirect URLs do Supabase para o domínio de produção; política de privacidade citando os operadores dos dados (Supabase, Resend e Anthropic, que lê o currículo na análise).
 
 ## Comandos
 

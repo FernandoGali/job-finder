@@ -49,6 +49,14 @@ class FakeStore:
         self._maybe_fail("list")
         return list(reversed(self.resumes))
 
+    async def get_resume_file(self, resume_id: str) -> dict[str, str] | None:
+        self._maybe_fail("get_file")
+        row = next((r for r in self.resumes if r["id"] == resume_id), None)
+        return {k: row[k] for k in ("storage_path", "content_type")} if row else None
+
+    async def download(self, path: str) -> bytes:
+        return self.files[path]
+
     async def get_resume_path(self, resume_id: str) -> str | None:
         return next((r["storage_path"] for r in self.resumes if r["id"] == resume_id), None)
 
@@ -79,3 +87,27 @@ def client(store) -> TestClient:
     )
     app.dependency_overrides[get_resume_store] = lambda: store
     return TestClient(app)
+
+
+def pdf_with_text(*lines: str) -> bytes:
+    """Monta um PDF mínimo de verdade, com texto selecionável (só caracteres ASCII)."""
+    commands = " ".join(f"({line}) Tj 0 -14 Td" for line in lines)
+    stream = f"BT /F1 12 Tf 72 720 Td {commands} ET".encode("latin-1")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R"
+        b" /Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = b"%PDF-1.4\n"
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref_at = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    out += b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets)
+    out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_at}\n".encode()
+    return out + b"%%EOF\n"  # o marcador de fim do PDF tem mesmo dois %

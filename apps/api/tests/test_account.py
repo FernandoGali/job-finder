@@ -2,7 +2,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from jobfinder_api.account import get_account_admin
+from jobfinder_api.admin import get_supabase_admin
 from jobfinder_api.config import Settings
 from jobfinder_api.supabase_user import SupabaseAdminClient, SupabaseError
 from tests.conftest import USER_ID
@@ -22,7 +22,7 @@ class FakeAdmin:
 @pytest.fixture
 def admin(client) -> FakeAdmin:
     fake = FakeAdmin()
-    client.app.dependency_overrides[get_account_admin] = lambda: fake
+    client.app.dependency_overrides[get_supabase_admin] = lambda: fake
     return fake
 
 
@@ -63,7 +63,7 @@ def test_falha_ao_apagar_a_conta_permite_tentar_de_novo(client, store, admin):
 
 @pytest.mark.anyio
 async def test_admin_indisponivel_sem_chave_secreta():
-    generator = get_account_admin(
+    generator = get_supabase_admin(
         Settings(_env_file=None, supabase_url="https://x.supabase.co", supabase_service_role_key="")
     )
 
@@ -75,7 +75,7 @@ async def test_admin_indisponivel_sem_chave_secreta():
 
 @pytest.mark.anyio
 async def test_admin_usa_a_chave_secreta():
-    generator = get_account_admin(
+    generator = get_supabase_admin(
         Settings(
             _env_file=None,
             supabase_url="https://x.supabase.co",

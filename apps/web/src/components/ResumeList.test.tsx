@@ -64,3 +64,29 @@ describe("formatSize", () => {
     expect(formatSize(2.5 * 1024 * 1024)).toBe("2,5 MB");
   });
 });
+
+describe("ResumeList com análise", () => {
+  it("mostra o perfil do currículo mais recente quando já foi analisado", () => {
+    const analyzed = {
+      ...resume("2", "novo.pdf", "2026-10-27T18:30:00Z"),
+      profile: {
+        target_role: "Analista de Dados",
+        seniority: "pleno" as const,
+        skills: ["SQL"],
+        summary: "",
+        analyzed_at: "2026-10-27T18:31:00Z",
+      },
+    };
+    render(<ResumeList result={{ state: "ok", resumes: [analyzed] }} />);
+
+    expect(screen.getByRole("region", { name: "Perfil lido pela IA" })).toHaveTextContent("Analista de Dados");
+    expect(screen.getByRole("button", { name: "Analisar de novo" })).toBeInTheDocument();
+  });
+
+  it("oferece a análise quando o currículo ainda não foi analisado", () => {
+    render(<ResumeList result={{ state: "ok", resumes: [resume("2", "novo.pdf", "2026-10-27T18:30:00Z")] }} />);
+
+    expect(screen.getByText("Este currículo ainda não foi analisado.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analisar com IA" })).toBeInTheDocument();
+  });
+});
