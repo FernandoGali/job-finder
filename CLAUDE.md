@@ -47,7 +47,14 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 - Feito: login parte 1 — `/entrar` (e-mail e senha), `/auth/callback`, `/minha-area` protegida pelo middleware. Testado à mão pelo Fernando.
 - Feito: confirmação de e-mail por botão em `/auth/confirmar` (resistente aos robôs de link do Outlook/Hotmail), aviso de `?erro=link` no `/entrar`, regra de senha com checklist ao vivo no cadastro. Testado à mão pelo Fernando.
 - Feito: login parte 2 — a API confere o JWT do Supabase (ES256, chave pública via JWKS, sem segredo) em `auth.py`; rotas que exigem login usam `Depends(get_current_user)`. `/me` devolve quem está logado e a Minha área mostra a resposta. Testado à mão pelo Fernando.
-- Próximo: login parte 3 — upload do currículo com consentimento LGPD (Supabase Storage, pasta por usuário com RLS).
+- Feito: parte 3a — tabelas `consents` e `resumes` e pasta privada `curriculos` no Storage, com RLS (cada usuário só acessa `<user_id>/...`). Aplicado no projeto real e conferido de fora (visitante não acessa nada).
+- Próximo: parte 3b — API recebe o arquivo (PDF/DOCX, até 5 MB), confere login e consentimento, e grava em nome do usuário (token dele, então o RLS vale). Depois 3c: tela na Minha área.
+
+## Banco de dados
+
+- Mudanças no banco ficam em `supabase/migrations/` (SQL) e são testadas com pgTAP em `supabase/tests/`. O job "Banco (Supabase)" do CI sobe um Supabase descartável e roda os testes; não há Docker no PC do Fernando.
+- Aplicar no projeto real só depois do CI verde: o Fernando cola o SQL no **SQL Editor** do Supabase e roda uma vez. Como não usamos `supabase db push`, o histórico de migrações do projeto real fica vazio; se um dia adotarmos o CLI, marcar as já aplicadas com `supabase migration repair`.
+- Tabelas novas: sempre `enable row level security`, `revoke all ... from anon, authenticated` e `grant` só do necessário (a exposição automática de tabelas está desligada).
 - E-mail: Supabase envia pelo Resend (SMTP), remetente provisório `onboarding@resend.dev`, que só entrega no e-mail do dono da conta Resend. Modelo "Confirm sign up" aponta para `/auth/confirmar?token_hash=…&type=email` (confirmação só no clique do botão, por causa dos robôs de link do Outlook).
 - Senha: mínimo 8 caracteres, com minúscula, maiúscula e número (escolha do Fernando), no Supabase e na tela (`lib/auth/password.ts`). As duas regras precisam andar juntas.
 - Pendente: secrets no GitHub quando o CI precisar do Supabase; domínio próprio no Resend antes de abrir para usuários (aí criar uma chave restrita ao domínio e apagar a atual); bloqueio de senhas vazadas (só no plano pago do Supabase); trocar Site URL e Redirect URLs do Supabase para o domínio de produção.

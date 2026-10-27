@@ -25,6 +25,13 @@ class CurrentUser(BaseModel):
     email: str | None = None
 
 
+class UserSession(BaseModel):
+    """Quem está logado e o token dele, para agir no Supabase em nome da pessoa."""
+
+    user: CurrentUser
+    access_token: str
+
+
 class InvalidTokenError(Exception):
     pass
 
@@ -74,21 +81,26 @@ def get_token_verifier(settings: Settings = Depends(get_settings)) -> TokenVerif
 _bearer = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
+def get_session(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     verifier: TokenVerifier = Depends(get_token_verifier),
-) -> CurrentUser:
+) -> UserSession:
     """Dependência das rotas que exigem login. Responde 401 se o token faltar ou for inválido."""
     if credentials is None:
         raise _unauthorized("Faça login para continuar.")
     try:
-        return verifier.verify(credentials.credentials)
+        user = verifier.verify(credentials.credentials)
+        return UserSession(user=user, access_token=credentials.credentials)
     except InvalidTokenError:
         raise _unauthorized("Sessão inválida ou expirada. Entre de novo.") from None
     except AuthUnavailableError:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "Login indisponível no momento."
         ) from None
+
+
+def get_current_user(session: UserSession = Depends(get_session)) -> CurrentUser:
+    return session.user
 
 
 def _unauthorized(detail: str) -> HTTPException:

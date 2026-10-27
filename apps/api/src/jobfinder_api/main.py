@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from jobfinder_api import __version__
+from jobfinder_api import __version__, resumes
 from jobfinder_api.auth import CurrentUser, get_current_user
 from jobfinder_api.config import Settings, get_settings
 
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
         """Quem está logado, segundo o token enviado. Exige login."""
         return user
 
+    app.include_router(resumes.router)
     return app
 
 
