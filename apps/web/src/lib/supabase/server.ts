@@ -5,8 +5,10 @@ import { supabaseEnv } from "./env";
 
 /** Cliente do Supabase para páginas e rotas do servidor. Criar um por requisição. */
 export async function createClient() {
-  const { url, anonKey } = supabaseEnv();
+  // cookies() primeiro: ele marca a página como dinâmica, então o build não tenta
+  // montá-la sem .env (como no CI).
   const cookieStore = await cookies();
+  const { url, anonKey } = supabaseEnv();
 
   return createServerClient(url, anonKey, {
     cookies: {
