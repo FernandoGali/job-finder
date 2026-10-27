@@ -89,6 +89,8 @@ async def test_pedido_usa_o_modelo_o_formato_e_o_fallback_combinados():
         {"role": "user", "content": f"<curriculo>\n{RESUME}\n</curriculo>"}
     ]
     assert "Não invente" in request["system"]
+    # Nome de curso não é competência (os cursos citados no currículo não entram na lista).
+    assert "Nome de curso, treinamento ou certificação não é competência" in request["system"]
 
 
 async def test_descarta_competencias_que_nao_estao_no_curriculo():

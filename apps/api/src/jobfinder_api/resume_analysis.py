@@ -34,9 +34,10 @@ trecho do currículo que sustenta essa escolha. Se não houver base, use null no
 - seniority: estagio, junior, pleno, senior, especialista ou gestao, deduzida do tempo de \
 experiência e das responsabilidades descritas. Use null se o currículo não permitir deduzir. \
 Explique a dedução em seniority_reason, em uma frase.
-- skills: competências técnicas, ferramentas, linguagens e certificações citadas, escritas \
+- skills: competências técnicas, ferramentas, linguagens e métodos que a pessoa usa, escritos \
 exatamente como aparecem no currículo, sem repetir, no máximo 30, das mais relevantes para \
-o cargo-alvo às menos relevantes.
+o cargo-alvo às menos relevantes. Nome de curso, treinamento ou certificação não é \
+competência (ex.: "Fundamentos do Python 1" não entra; "Python" entra se aparecer no texto).
 - summary: uma ou duas frases em português resumindo a experiência, só com fatos do currículo.\
 """
 
