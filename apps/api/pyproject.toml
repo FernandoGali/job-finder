@@ -28,6 +28,8 @@ packages = ["src/jobfinder_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Deixa "from tests.conftest import ..." funcionar igual no PC e no CI.
+pythonpath = ["."]
 addopts = "--cov=jobfinder_api --cov-report=term-missing --cov-fail-under=90"
 
 [tool.ruff]
