@@ -47,7 +47,7 @@ describe("searchLinks", () => {
     expect(urlOf("Indeed", "Analista de Dados")).toBe("https://br.indeed.com/jobs?q=Analista%20de%20Dados");
   });
 
-  it("só remotas: filtro oficial no LinkedIn (no Brasil) e a palavra remoto nos outros", () => {
+  it("só remotas: filtro oficial no LinkedIn (no Brasil); os outros sites não mudam", () => {
     const remote = { remote: true };
     expect(urlOf("LinkedIn", "Analista de Dados", remote)).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=Brasil&f_WT=2",
@@ -55,15 +55,10 @@ describe("searchLinks", () => {
     expect(urlOf("LinkedIn", "Analista de Dados", { remote: true, location: "Minas Gerais" })).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=Minas%20Gerais&f_WT=2",
     );
-    expect(urlOf("Indeed", "Analista de Dados", remote)).toBe(
-      "https://br.indeed.com/jobs?q=Analista%20de%20Dados%20remoto",
-    );
-    expect(urlOf("Gupy", "Analista de Dados", remote)).toBe(
-      "https://portal.gupy.io/job-search/term=Analista%20de%20Dados%20remoto",
-    );
-    expect(urlOf("Vagas.com.br", "Analista de Dados", remote)).toBe(
-      "https://www.vagas.com.br/vagas-de-analista-de-dados-remoto",
-    );
+    // "remoto" no termo quase zerava a busca nos outros sites: lá o filtro é feito no site.
+    for (const site of ["Indeed", "Gupy", "Vagas.com.br", "InfoJobs", "Trampos"]) {
+      expect(urlOf(site, "Analista de Dados", remote)).toBe(urlOf(site, "Analista de Dados"));
+    }
   });
 
   it("limpa espaços repetidos e protege caracteres especiais", () => {

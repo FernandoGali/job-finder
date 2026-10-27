@@ -214,13 +214,13 @@ async def test_termos_de_busca_curtos_e_sem_ou_virgulas_ou_parenteses():
         "Analista de Dados",
         "Estágio ou Júnior em Análise de Dados",  # tem "ou"
         "Analista de Dados, BI",  # vírgula
-        "Analista de BI (Júnior)",  # parênteses
+        "Analista de BI (Jr)",  # parênteses
         "Dados/BI",  # barra
-        "Analista Júnior de Dados e Business Intelligence",  # longo demais
+        "Analista de Business Intelligence Corporativo",  # mais de 4 palavras
         "  analista   de dados ",  # repetido
         "Analista de BI",
-        "Estágio em Análise de Dados",
-        "Cientista de Dados Júnior",
+        "Estágio em Dados",
+        "Cientista de Dados",
         "Engenheiro de Dados",  # passaria do limite de 4
     ]
     fake = FakeClaude(json.dumps(answer(search_terms=terms)))
@@ -230,8 +230,29 @@ async def test_termos_de_busca_curtos_e_sem_ou_virgulas_ou_parenteses():
     assert result.profile.search_terms == [
         "Analista de Dados",
         "Analista de BI",
-        "Estágio em Análise de Dados",
-        "Cientista de Dados Júnior",
+        "Estágio em Dados",
+        "Cientista de Dados",
+    ]
+
+
+async def test_termos_de_busca_perdem_o_nivel_que_corta_resultados():
+    terms = [
+        "Analista de Dados Júnior",
+        "Analista de BI Jr.",
+        "Analista Sênior",
+        "Júnior",
+        "Estágio em Dados",
+    ]
+    fake = FakeClaude(json.dumps(answer(search_terms=terms)))
+
+    result = await analyze(fake)
+
+    # "Júnior" e "Jr." saem; "Analista Sênior" e "Júnior" ficam curtos demais e somem;
+    # "Estágio" fica, porque é um tipo de vaga.
+    assert result.profile.search_terms == [
+        "Analista de Dados",
+        "Analista de BI",
+        "Estágio em Dados",
     ]
 
 
@@ -242,4 +263,5 @@ async def test_pedido_explica_os_termos_de_busca():
 
     [request] = fake.requests
     assert "search_terms" in request["output_config"]["format"]["schema"]["required"]
-    assert 'sem "ou", vírgulas, barras nem' in request["system"]
+    assert 'sem nível (júnior, pleno, sênior), sem "ou"' in request["system"]
+    assert "títulos de vaga comuns no" in request["system"]

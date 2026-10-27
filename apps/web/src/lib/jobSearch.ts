@@ -15,7 +15,7 @@ type Site = { name: string; build: (query: string, location: string, remote: boo
 export function slugify(text: string): string {
   return text
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -23,11 +23,10 @@ export function slugify(text: string): string {
 
 const q = encodeURIComponent;
 
-/** Sites sem filtro de remoto no link: a palavra entra no termo de busca. */
-const withRemote = (query: string, remote: boolean) => (remote ? `${query} remoto` : query);
-
 // Conferidos em 27/10/2026 (LinkedIn, Vagas.com.br e InfoJobs por requisição; Indeed, Gupy e
 // Trampos pelo Fernando no navegador). Glassdoor saiu: o formato testado não preenchia a busca.
+// "Só remotas" vale só no LinkedIn, que tem filtro oficial. Nos outros, pôr "remoto" no termo
+// quase zerava a busca (Vagas.com.br: 207 vagas de analista de dados, 5 com "remoto").
 const SITES: Site[] = [
   {
     name: "LinkedIn",
@@ -43,29 +42,25 @@ const SITES: Site[] = [
   },
   {
     name: "Indeed",
-    build: (query, location, remote) =>
-      `https://br.indeed.com/jobs?q=${q(withRemote(query, remote))}` +
+    build: (query, location) =>
+      `https://br.indeed.com/jobs?q=${q(query)}` +
       (location ? `&l=${q(location)}` : ""),
   },
   {
     name: "Gupy",
-    build: (query, _location, remote) =>
-      `https://portal.gupy.io/job-search/term=${q(withRemote(query, remote))}`,
+    build: (query) => `https://portal.gupy.io/job-search/term=${q(query)}`,
   },
   {
     name: "Vagas.com.br",
-    build: (query, _location, remote) =>
-      `https://www.vagas.com.br/vagas-de-${slugify(withRemote(query, remote))}`,
+    build: (query) => `https://www.vagas.com.br/vagas-de-${slugify(query)}`,
   },
   {
     name: "InfoJobs",
-    build: (query, _location, remote) =>
-      `https://www.infojobs.com.br/vagas-de-emprego-${slugify(withRemote(query, remote))}.aspx`,
+    build: (query) => `https://www.infojobs.com.br/vagas-de-emprego-${slugify(query)}.aspx`,
   },
   {
     name: "Trampos",
-    build: (query, _location, remote) =>
-      `https://trampos.co/oportunidades?tr=${q(withRemote(query, remote))}`,
+    build: (query) => `https://trampos.co/oportunidades?tr=${q(query)}`,
   },
 ];
 

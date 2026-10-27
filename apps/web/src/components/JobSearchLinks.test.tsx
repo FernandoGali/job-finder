@@ -35,7 +35,7 @@ describe("JobSearchLinks", () => {
 
     fireEvent.change(screen.getByLabelText("O que buscar"), { target: { value: "Estágio BI" } });
     fireEvent.change(screen.getByLabelText(/Onde/), { target: { value: "Curitiba" } });
-    fireEvent.click(screen.getByLabelText("Só vagas remotas"));
+    fireEvent.click(screen.getByLabelText("Só vagas remotas (LinkedIn)"));
 
     expect(linkedin()).toHaveAttribute(
       "href",

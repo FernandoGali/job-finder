@@ -49,7 +49,7 @@ export function JobSearchLinks({ suggestions }: { suggestions: string[] }) {
       </label>
       <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input type="checkbox" checked={remote} onChange={(event) => setRemote(event.target.checked)} />
-        Só vagas remotas
+        Só vagas remotas (LinkedIn)
       </label>
       {links.length > 0 ? (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -65,9 +65,8 @@ export function JobSearchLinks({ suggestions }: { suggestions: string[] }) {
         <p role="status">Escreva o que buscar para ver os links.</p>
       )}
       <p style={{ margin: 0, fontSize: "0.8em" }}>
-        O local é usado só no LinkedIn e no Indeed; nos outros sites, escolha a cidade lá. Em
-        &quot;Só vagas remotas&quot;, o LinkedIn usa o filtro de trabalho remoto; nos outros, a
-        palavra &quot;remoto&quot; entra na busca.
+        O local é usado só no LinkedIn e no Indeed. Nos outros sites, escolha a cidade, o nível
+        (júnior, pleno…) e a modalidade (remoto, híbrido) nos filtros do próprio site.
       </p>
     </section>
   );

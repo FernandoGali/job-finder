@@ -17,7 +17,9 @@ MODEL = "claude-opus-5-5"
 MAX_SKILLS = 30
 MAX_CERTIFICATIONS = 15
 MAX_SEARCH_TERMS = 4
-MAX_SEARCH_TERM_WORDS = 5
+MAX_SEARCH_TERM_WORDS = 4
+# Palavras de nível que saem do termo de busca. "Estágio" fica: é um tipo de vaga.
+LEVEL_WORDS = {"júnior", "junior", "jr", "pleno", "pl", "sênior", "senior", "sr"}
 
 Seniority = Literal["estagio", "junior", "pleno", "senior", "especialista", "gestao"]
 SENIORITIES = ["estagio", "junior", "pleno", "senior", "especialista", "gestao"]
@@ -44,10 +46,12 @@ competência (ex.: "Fundamentos do Python 1" não entra; "Python" entra se apare
 - certifications: nomes de cursos, treinamentos e certificações citados, escritos exatamente \
 como aparecem no currículo, sem repetir, no máximo 15. Não inclua formação acadêmica \
 (graduação, pós, MBA) nem competências soltas.
-- search_terms: de 2 a 4 termos curtos para buscar vagas para esta pessoa em sites de \
-emprego no Brasil, do mais adequado ao menos, coerentes com o cargo-alvo e a senioridade. \
-Cada termo tem de 2 a 5 palavras, como um título de vaga, sem "ou", vírgulas, barras nem \
-parênteses (ex.: "Analista de Dados", "Estágio em Análise de Dados", "Analista de BI").
+- search_terms: de 2 a 4 termos para buscar vagas para esta pessoa em sites de emprego no \
+Brasil, do mais adequado ao menos, coerentes com o cargo-alvo. Use títulos de vaga comuns no \
+mercado brasileiro, mesmo que o currículo use outra palavra; evite variações raras. Cada \
+termo tem de 2 a 4 palavras, sem nível (júnior, pleno, sênior), sem "ou", vírgulas, barras \
+nem parênteses. "Estágio" pode entrar, porque é um tipo de vaga (ex.: "Analista de Dados", \
+"Estágio em Dados", "Analista de BI").
 - summary: uma ou duas frases em português resumindo a experiência, só com fatos do currículo.\
 """
 
@@ -136,18 +140,21 @@ def _found_in(items: list[str], haystack: str, limit: int) -> list[str]:
 
 
 def clean_search_terms(terms: list[str]) -> list[str]:
-    """Termos que funcionam em sites de vaga: curtos, sem "ou", vírgulas, barras ou parênteses.
+    """Termos que funcionam em sites de vaga: curtos, sem nível, sem "ou", vírgulas, barras ou
+    parênteses.
 
-    Diferente das competências, os termos não precisam estar escritos no currículo: são a
-    tradução do perfil para a busca. Por isso a conferência aqui é de formato.
+    Os sites procuram todas as palavras no anúncio, então cada palavra a mais corta resultados
+    ("júnior" cortou de 70% a 95% no Vagas.com.br e no InfoJobs). O nível sai do termo e é
+    filtrado no próprio site. Diferente das competências, os termos não precisam estar escritos
+    no currículo: são a tradução do perfil para a busca, por isso a conferência é de formato.
     """
     cleaned: list[str] = []
     seen: set[str] = set()
     for term in terms:
-        term = re.sub(r"\s+", " ", term).strip()
-        words = term.split(" ")
+        words = [w for w in term.split() if _normalize(w).strip(".") not in LEVEL_WORDS]
+        term = " ".join(words)
         if (
-            not term
+            len(words) < 2
             or len(words) > MAX_SEARCH_TERM_WORDS
             or re.search(r"[,/()|]", term)
             or "ou" in (word.casefold() for word in words)
