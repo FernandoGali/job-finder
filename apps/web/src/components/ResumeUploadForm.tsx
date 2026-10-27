@@ -50,7 +50,7 @@ export function ResumeUploadForm({
       kind: "info",
       text:
         `Currículo "${result.resume.original_filename}" enviado! ` +
-        'Clique em "Analisar com IA" para ver o que a IA leu nele.',
+        'Clique em "Analisar" para ver o que a IA leu nele.',
     });
     setFile(null);
     form.reset();

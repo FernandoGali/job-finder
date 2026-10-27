@@ -87,6 +87,6 @@ describe("ResumeList com análise", () => {
     render(<ResumeList result={{ state: "ok", resumes: [resume("2", "novo.pdf", "2026-10-27T18:30:00Z")] }} />);
 
     expect(screen.getByText("Este currículo ainda não foi analisado.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Analisar com IA" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analisar" })).toBeInTheDocument();
   });
 });

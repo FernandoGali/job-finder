@@ -42,7 +42,7 @@ export function ResumeList({ result }: { result: ResumesResult }) {
       ) : (
         <>
           <p>Este currículo ainda não foi analisado.</p>
-          <AnalyzeButton resumeId={latest.id} label="Analisar com IA" />
+          <AnalyzeButton resumeId={latest.id} label="Analisar" />
         </>
       )}
       {older.length > 0 && (

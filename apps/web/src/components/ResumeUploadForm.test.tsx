@@ -57,7 +57,7 @@ describe("ResumeUploadForm", () => {
     await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(resume));
     expect(upload).toHaveBeenCalledWith(file);
     expect(screen.getByRole("status")).toHaveTextContent('Currículo "cv.pdf" enviado!');
-    expect(screen.getByRole("status")).toHaveTextContent("Analisar com IA");
+    expect(screen.getByRole("status")).toHaveTextContent("Analisar");
   });
 
   it("avisa na hora quando o formato não é aceito", () => {
