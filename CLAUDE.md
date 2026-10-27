@@ -48,7 +48,10 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 - Feito: confirmação de e-mail por botão em `/auth/confirmar` (resistente aos robôs de link do Outlook/Hotmail), aviso de `?erro=link` no `/entrar`, regra de senha com checklist ao vivo no cadastro. Testado à mão pelo Fernando.
 - Feito: login parte 2 — a API confere o JWT do Supabase (ES256, chave pública via JWKS, sem segredo) em `auth.py`; rotas que exigem login usam `Depends(get_current_user)`. `/me` devolve quem está logado e a Minha área mostra a resposta. Testado à mão pelo Fernando.
 - Feito: parte 3a — tabelas `consents` e `resumes` e pasta privada `curriculos` no Storage, com RLS (cada usuário só acessa `<user_id>/...`). Aplicado no projeto real e conferido de fora (visitante não acessa nada).
-- Próximo: parte 3b — API recebe o arquivo (PDF/DOCX, até 5 MB), confere login e consentimento, e grava em nome do usuário (token dele, então o RLS vale). Depois 3c: tela na Minha área.
+- Feito: parte 3b — `POST /curriculos` e `GET /curriculos` na API: login + consentimento (termo `v1`), PDF/DOCX até 5 MB detectados pelo conteúdo, nome aleatório no Storage, grava com o token do usuário (o RLS vale para a API).
+- Feito: parte 3c — Minha área com termo, envio e lista dos currículos; o navegador envia direto para a API. Testado de ponta a ponta pelo Fernando (arquivo no Storage e registro em `resumes`).
+- Próximo: decidir com o Fernando. Candidatos: excluir currículo e conta (LGPD; o termo já promete isso, precisa existir antes de abrir para usuários) ou a análise do currículo pela IA (extrair cargo, competências e senioridade).
+- Termo de consentimento: o texto fica em `apps/web/src/lib/resumes.ts`. Mudou o texto? Subir `CONSENT_VERSION` lá e na API (`resumes.py`) juntos.
 
 ## Banco de dados
 
