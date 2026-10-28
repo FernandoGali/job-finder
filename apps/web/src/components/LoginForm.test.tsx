@@ -93,6 +93,15 @@ describe("LoginForm", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Link usado");
   });
 
+  it("no login, oferece o link de esqueci minha senha", () => {
+    setup();
+
+    expect(screen.getByRole("link", { name: "Esqueci minha senha" })).toHaveAttribute("href", "/esqueci-senha");
+
+    fireEvent.click(screen.getByRole("button", { name: /Criar conta/ }));
+    expect(screen.queryByRole("link", { name: "Esqueci minha senha" })).not.toBeInTheDocument();
+  });
+
   it("exige senha de pelo menos 8 caracteres", () => {
     setup();
 

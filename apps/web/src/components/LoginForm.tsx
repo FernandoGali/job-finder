@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 
 import { authErrorMessage } from "@/lib/auth/messages";
+import { FORGOT_PASSWORD_PATH } from "@/lib/auth/routes";
 import { PASSWORD_MIN_LENGTH, passwordProblem } from "@/lib/auth/password";
 
 import { PasswordChecklist } from "./PasswordChecklist";
@@ -88,6 +89,11 @@ export function LoginForm({
       </button>
       {feedback && (
         <p role={feedback.kind === "error" ? "alert" : "status"}>{feedback.text}</p>
+      )}
+      {isLogin && (
+        <a href={FORGOT_PASSWORD_PATH} style={{ fontSize: "0.9em" }}>
+          Esqueci minha senha
+        </a>
       )}
       <button
         type="button"

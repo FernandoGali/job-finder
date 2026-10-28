@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseConfirmParams } from "./confirm";
+import { parseConfirmParams, RECOVERY_TYPES } from "./confirm";
 
 describe("parseConfirmParams", () => {
   it("aceita o link de confirmação de cadastro", () => {
@@ -23,5 +23,13 @@ describe("parseConfirmParams", () => {
 
   it("recusa parâmetros repetidos na URL", () => {
     expect(parseConfirmParams({ token_hash: ["a", "b"], type: "email" })).toBeNull();
+  });
+
+  it("o link de redefinição de senha só vale na tela de redefinição", () => {
+    expect(parseConfirmParams({ token_hash: "abc123", type: "recovery" }, RECOVERY_TYPES)).toEqual({
+      tokenHash: "abc123",
+      type: "recovery",
+    });
+    expect(parseConfirmParams({ token_hash: "abc123", type: "email" }, RECOVERY_TYPES)).toBeNull();
   });
 });

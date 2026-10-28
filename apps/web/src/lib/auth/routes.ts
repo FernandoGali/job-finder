@@ -1,6 +1,8 @@
 export const LOGIN_PATH = "/entrar";
 export const HOME_PATH = "/minha-area";
 export const LINK_ERROR_PATH = `${LOGIN_PATH}?erro=link`;
+export const FORGOT_PASSWORD_PATH = "/esqueci-senha";
+export const RESET_LINK_ERROR_PATH = `${FORGOT_PASSWORD_PATH}?erro=link`;
 
 const PROTECTED_PREFIXES = [HOME_PATH];
 

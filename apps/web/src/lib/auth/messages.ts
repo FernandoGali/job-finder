@@ -4,6 +4,7 @@ const MESSAGES: Record<string, string> = {
   user_already_exists: "Já existe uma conta com este e-mail. Tente entrar.",
   weak_password: "Senha fraca. Use no mínimo 8 caracteres, com letra minúscula, letra maiúscula e número.",
   email_address_invalid: "Este e-mail não é válido.",
+  same_password: "A senha nova precisa ser diferente da atual.",
   over_email_send_rate_limit: "Muitos e-mails enviados em pouco tempo. Aguarde alguns minutos.",
   over_request_rate_limit: "Muitas tentativas em pouco tempo. Aguarde alguns minutos.",
 };
