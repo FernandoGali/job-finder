@@ -17,6 +17,8 @@ BUCKET = "curriculos"
 LIST_LIMIT = 1000
 # Vagas gravadas por pedido; a descrição completa deixa cada vaga com alguns KB.
 JOBS_BATCH = 200
+# O Supabase devolve no máximo 1.000 linhas por pedido.
+JOBS_PAGE = 1000
 
 
 class SupabaseError(Exception):
@@ -62,6 +64,25 @@ class SupabaseAdminClient(_SupabaseHttp):
                 json=rows[start : start + JOBS_BATCH],
                 headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
             )
+
+    async def list_jobs(self) -> list[dict[str, Any]]:
+        """Todas as vagas, com a descrição (para comparar com o perfil; não sai da API)."""
+        rows: list[dict[str, Any]] = []
+        while True:
+            response = await self._request(
+                "GET",
+                "/rest/v1/jobs",
+                params={
+                    "select": "id,title,company,location,url,description",
+                    "order": "id",
+                    "limit": str(JOBS_PAGE),
+                    "offset": str(len(rows)),
+                },
+            )
+            page = response.json()
+            rows.extend(page)
+            if len(page) < JOBS_PAGE:
+                return rows
 
     async def delete_stale_jobs(self, source: str, board: str, before: str) -> None:
         """Apaga as vagas do quadro que não vieram na coleta atual (já fecharam)."""
