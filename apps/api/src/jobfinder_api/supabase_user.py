@@ -15,6 +15,8 @@ import httpx
 BUCKET = "curriculos"
 # Limite de itens por listagem no Storage; um usuário tem poucos currículos.
 LIST_LIMIT = 1000
+# Vagas gravadas por pedido; a descrição completa deixa cada vaga com alguns KB.
+JOBS_BATCH = 200
 
 
 class SupabaseError(Exception):
@@ -49,6 +51,25 @@ class SupabaseAdminClient(_SupabaseHttp):
 
     async def delete_user(self, user_id: str) -> None:
         await self._request("DELETE", f"/auth/v1/admin/users/{user_id}")
+
+    async def upsert_jobs(self, rows: list[dict[str, Any]]) -> None:
+        """Grava vagas novas e atualiza as que já existem (mesma fonte e mesmo id)."""
+        for start in range(0, len(rows), JOBS_BATCH):
+            await self._request(
+                "POST",
+                "/rest/v1/jobs",
+                params={"on_conflict": "source,external_id"},
+                json=rows[start : start + JOBS_BATCH],
+                headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+            )
+
+    async def delete_stale_jobs(self, source: str, board: str, before: str) -> None:
+        """Apaga as vagas do quadro que não vieram na coleta atual (já fecharam)."""
+        await self._request(
+            "DELETE",
+            "/rest/v1/jobs",
+            params={"source": f"eq.{source}", "board": f"eq.{board}", "fetched_at": f"lt.{before}"},
+        )
 
     async def save_profile(self, row: dict[str, Any]) -> None:
         """Grava (ou substitui) o perfil de um currículo. Só a API grava perfis."""
