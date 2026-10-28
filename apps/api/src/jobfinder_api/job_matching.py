@@ -11,6 +11,7 @@ Pontos (0 a 100):
 
 import re
 import unicodedata
+from functools import lru_cache
 from typing import Literal
 
 from pydantic import BaseModel
@@ -196,18 +197,31 @@ def _tokens(text: str) -> list[str]:
     return re.findall(r"[a-z0-9+#]+", normalize(text))
 
 
-def _phrases(text: str, max_words: int) -> set[str]:
-    """Todas as sequências de 1 a max_words palavras seguidas do texto.
+# Textos curtos do perfil (competências e termos de busca) se repetem para cada vaga: preparados
+# uma vez só. Sem isso eram ~47 mil preparações para comparar um perfil com 1.435 vagas.
+@lru_cache(maxsize=4096)
+def _skill_key(skill: str) -> str:
+    return " ".join(_tokens(skill))
 
-    Conferir uma competência vira uma consulta a este conjunto, feito uma vez por vaga. Antes,
-    cada competência era procurada na descrição inteira e o ranking de 517 vagas levava 14 s.
+
+@lru_cache(maxsize=4096)
+def _term_words(term: str) -> tuple[str, ...]:
+    return tuple(w for w in _words(term) if w not in STOPWORDS)
+
+
+class _JobText:
+    """Texto da vaga preparado uma vez: palavras normalizadas separadas por um espaço.
+
+    Conferir uma competência vira procurar " power bi " nesse texto, uma busca simples e rápida.
+    Antes, cada competência normalizava e varria a descrição inteira: 517 vagas levavam 14 s.
     """
-    words = _tokens(text)
-    return {
-        " ".join(words[start : start + size])
-        for size in range(1, max_words + 1)
-        for start in range(len(words) - size + 1)
-    }
+
+    def __init__(self, normalized_text: str) -> None:
+        words = re.findall(r"[a-z0-9+#]+", normalized_text)
+        self._joined = " " + " ".join(words) + " "
+
+    def has(self, key: str) -> bool:
+        return bool(key) and f" {key} " in self._joined
 
 
 def job_level(title: str) -> JobLevel | None:
@@ -219,20 +233,48 @@ def job_level(title: str) -> JobLevel | None:
     return None
 
 
-def work_mode(title: str, location: str, description: str) -> WorkMode | None:
+def _combined(patterns: dict[WorkMode, str]) -> re.Pattern[str]:
+    """Um padrão só, com um grupo por modalidade: o texto é varrido uma vez, não três."""
+    return re.compile("|".join(f"(?P<{mode}>{pattern})" for mode, pattern in patterns.items()))
+
+
+_HEADER_MODES = _combined(WORK_MODE_IN_HEADER)
+_DESCRIPTION_MODES = _combined(WORK_MODE_IN_DESCRIPTION)
+
+# Toda expressão de modalidade da descrição contém uma destas palavras. Achar as palavras é uma
+# busca simples; o padrão completo roda só em volta delas (varrer descrições inteiras com ele
+# era metade do tempo do ranking).
+_MODE_KEYWORDS = ("remot", "hibrid", "hybrid", "presencial", "#li-")
+_BEFORE, _AFTER = 45, 25
+
+
+def _mode_snippets(normalized: str) -> str:
+    snippets = []
+    for keyword in _MODE_KEYWORDS:
+        start = normalized.find(keyword)
+        while start != -1:
+            snippets.append(normalized[max(0, start - _BEFORE) : start + len(keyword) + _AFTER])
+            start = normalized.find(keyword, start + 1)
+    return " | ".join(snippets)
+
+
+def work_mode(
+    title: str, location: str, description: str, normalized_description: str | None = None
+) -> WorkMode | None:
     """Remoto, híbrido ou presencial. Título e local valem mais que a descrição.
 
     Se mais de uma aparece e uma delas é híbrido, vale híbrido ("modelo híbrido, com a
     flexibilidade do trabalho remoto"). Sem sinal claro, None: melhor não mostrar que chutar.
     """
-    for text, patterns in (
-        (f"{title} {location}", WORK_MODE_IN_HEADER),
-        (description, WORK_MODE_IN_DESCRIPTION),
+    if normalized_description is None:
+        normalized_description = normalize(description)
+    for text, pattern in (
+        (normalize(f"{title} {location}"), _HEADER_MODES),
+        (_mode_snippets(normalized_description), _DESCRIPTION_MODES),
     ):
-        normalized = normalize(text)
-        found = [mode for mode, pattern in patterns.items() if re.search(pattern, normalized)]
+        found = {match.lastgroup for match in pattern.finditer(text)}
         if len(found) == 1:
-            return found[0]
+            return found.pop()  # type: ignore[return-value]
         if "hibrido" in found:
             return "hibrido"
         if found:
@@ -254,7 +296,7 @@ def title_match(search_terms: list[str], title: str) -> tuple[float, str | None]
 
     best, best_term = 0.0, None
     for term in search_terms:
-        words = [w for w in _words(term) if w not in STOPWORDS]
+        words = _term_words(term)
         area = [w for w in words if w not in ROLE_WORDS]
         role = [w for w in words if w in ROLE_WORDS]
         if area:
@@ -282,10 +324,9 @@ def score_job(profile: ProfileForMatching, job: JobForMatching) -> JobMatch:
         reasons.append(f"Cargo parecido com “{term}”")
 
     # Competência = sequência de palavras inteiras ("C" não vale dentro de "C++").
-    skill_keys = [(skill, " ".join(_tokens(skill))) for skill in profile.skills]
-    longest = max((key.count(" ") + 1 for _, key in skill_keys if key), default=1)
-    phrases = _phrases(f"{job.title}\n{job.description}", longest)
-    matched = [skill for skill, key in skill_keys if key and key in phrases]
+    description = normalize(job.description)
+    job_text = _JobText(f"{normalize(job.title)} {description}")
+    matched = [skill for skill in profile.skills if job_text.has(_skill_key(skill))]
     skill_points = round(40 * min(len(matched), SKILLS_FOR_FULL_SCORE) / SKILLS_FOR_FULL_SCORE)
     if matched:
         reasons.append("Pede " + ", ".join(matched[:5]) + (" e mais" if len(matched) > 5 else ""))
@@ -314,7 +355,7 @@ def score_job(profile: ProfileForMatching, job: JobForMatching) -> JobMatch:
         score=score,
         reasons=reasons,
         matched_skills=matched,
-        work_mode=work_mode(job.title, job.location, job.description),
+        work_mode=work_mode(job.title, job.location, job.description, description),
     )
 
 
