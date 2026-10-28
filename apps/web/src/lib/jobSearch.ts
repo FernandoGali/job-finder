@@ -45,8 +45,10 @@ const SITES: Site[] = [
   },
   {
     name: "Indeed",
+    // title:(...) é a busca avançada do Indeed: todas as palavras no título da vaga, o que
+    // corta anúncios genéricos que só citam o termo na descrição.
     build: (query, location) =>
-      `https://br.indeed.com/jobs?q=${q(query)}` +
+      `https://br.indeed.com/jobs?q=${q(`title:(${query.replace(/[()"]/g, "")})`)}` +
       (location ? `&l=${q(location)}` : ""),
   },
   {

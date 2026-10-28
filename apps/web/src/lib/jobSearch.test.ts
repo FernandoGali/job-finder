@@ -20,7 +20,7 @@ describe("searchLinks", () => {
       "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22&location=S%C3%A3o%20Paulo",
     );
     expect(urlOf("Indeed", "Analista de Dados", options)).toBe(
-      "https://br.indeed.com/jobs?q=Analista%20de%20Dados&l=S%C3%A3o%20Paulo",
+      "https://br.indeed.com/jobs?q=title%3A(Analista%20de%20Dados)&l=S%C3%A3o%20Paulo",
     );
     expect(urlOf("Gupy", "Analista de Dados")).toBe(
       "https://portal.gupy.io/job-search/term=Analista%20de%20Dados",
@@ -44,7 +44,7 @@ describe("searchLinks", () => {
     expect(urlOf("LinkedIn", "Analista de Dados", { location: "   " })).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22",
     );
-    expect(urlOf("Indeed", "Analista de Dados")).toBe("https://br.indeed.com/jobs?q=Analista%20de%20Dados");
+    expect(urlOf("Indeed", "Analista de Dados")).toBe("https://br.indeed.com/jobs?q=title%3A(Analista%20de%20Dados)");
   });
 
   it("só remotas: filtro oficial no LinkedIn (no Brasil); os outros sites não mudam", () => {
@@ -65,8 +65,12 @@ describe("searchLinks", () => {
     expect(urlOf("LinkedIn", '"Analista de BI"')).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20BI%22",
     );
-    // Nos outros sites o termo vai como está.
-    expect(urlOf("Indeed", "Analista de BI")).toBe("https://br.indeed.com/jobs?q=Analista%20de%20BI");
+    // No Indeed o termo vai no título, sem aspas nem parênteses extras.
+    expect(urlOf("Indeed", "Analista de BI")).toBe("https://br.indeed.com/jobs?q=title%3A(Analista%20de%20BI)");
+  });
+
+  it("no Indeed, busca só no título e limpa parênteses e aspas digitados", () => {
+    expect(urlOf("Indeed", '"Analista (BI)"')).toBe("https://br.indeed.com/jobs?q=title%3A(Analista%20BI)");
   });
 
   it("limpa espaços repetidos e protege caracteres especiais", () => {
