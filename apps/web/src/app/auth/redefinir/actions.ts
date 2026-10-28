@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { parseConfirmParams, RECOVERY_TYPES } from "@/lib/auth/confirm";
+import { parseRecoveryLink } from "@/lib/auth/confirm";
 import { authErrorMessage } from "@/lib/auth/messages";
 import { passwordProblem } from "@/lib/auth/password";
 import { HOME_PATH, RESET_LINK_ERROR_PATH } from "@/lib/auth/routes";
@@ -17,11 +17,12 @@ export type ResetState = { error: string | null };
  * conferida antes, já que o código só vale uma vez.
  */
 export async function resetPassword(_previous: ResetState, formData: FormData): Promise<ResetState> {
-  const params = parseConfirmParams(
-    { token_hash: formData.get("token_hash"), type: formData.get("type") },
-    RECOVERY_TYPES,
-  );
-  if (!params) {
+  const link = parseRecoveryLink({
+    token_hash: formData.get("token_hash"),
+    type: formData.get("type"),
+    code: formData.get("code"),
+  });
+  if (!link) {
     redirect(RESET_LINK_ERROR_PATH);
   }
 
@@ -35,7 +36,10 @@ export async function resetPassword(_previous: ResetState, formData: FormData): 
   }
 
   const supabase = await createClient();
-  const verified = await supabase.auth.verifyOtp({ token_hash: params.tokenHash, type: "recovery" });
+  const verified =
+    "code" in link
+      ? await supabase.auth.exchangeCodeForSession(link.code)
+      : await supabase.auth.verifyOtp({ token_hash: link.token_hash, type: "recovery" });
   if (verified.error) {
     redirect(RESET_LINK_ERROR_PATH);
   }

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
-const params = { tokenHash: "abc123", type: "recovery" as const };
+const link = { token_hash: "abc123", type: "recovery" as const };
 const save = () => screen.getByRole("button", { name: "Salvar senha nova" });
 
 function fill(password: string, confirmation: string) {
@@ -13,7 +13,7 @@ function fill(password: string, confirmation: string) {
 
 describe("ResetPasswordForm", () => {
   it("só libera com senha dentro da regra e repetida igual", () => {
-    render(<ResetPasswordForm params={params} action={vi.fn()} />);
+    render(<ResetPasswordForm link={link} action={vi.fn()} />);
     expect(save()).toBeDisabled();
 
     fill("senhafraca", "senhafraca");
@@ -29,7 +29,7 @@ describe("ResetPasswordForm", () => {
 
   it("envia o código do link junto com a senha nova", async () => {
     const action = vi.fn().mockResolvedValue({ error: null });
-    render(<ResetPasswordForm params={params} action={action} />);
+    render(<ResetPasswordForm link={link} action={action} />);
 
     fill("Senha2026", "Senha2026");
     fireEvent.click(save());
@@ -42,9 +42,22 @@ describe("ResetPasswordForm", () => {
     expect(formData.get("confirmation")).toBe("Senha2026");
   });
 
+  it("com o link padrão do Supabase, envia o código de troca", async () => {
+    const action = vi.fn().mockResolvedValue({ error: null });
+    render(<ResetPasswordForm link={{ code: "codigo-pkce" }} action={action} />);
+
+    fill("Senha2026", "Senha2026");
+    fireEvent.click(save());
+
+    await waitFor(() => expect(action).toHaveBeenCalledOnce());
+    const formData: FormData = action.mock.calls[0][1];
+    expect(formData.get("code")).toBe("codigo-pkce");
+    expect(formData.get("token_hash")).toBeNull();
+  });
+
   it("mostra o erro devolvido pelo servidor", async () => {
     const action = vi.fn().mockResolvedValue({ error: "A senha nova precisa ser diferente da atual." });
-    render(<ResetPasswordForm params={params} action={action} />);
+    render(<ResetPasswordForm link={link} action={action} />);
 
     fill("Senha2026", "Senha2026");
     fireEvent.click(save());
@@ -53,7 +66,7 @@ describe("ResetPasswordForm", () => {
   });
 
   it("mostra a regra da senha com as bolinhas", () => {
-    render(<ResetPasswordForm params={params} action={vi.fn()} />);
+    render(<ResetPasswordForm link={link} action={vi.fn()} />);
 
     expect(screen.getByRole("list", { name: "Regras da senha" })).toBeInTheDocument();
   });

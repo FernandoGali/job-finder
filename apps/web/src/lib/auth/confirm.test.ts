@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseConfirmParams, RECOVERY_TYPES } from "./confirm";
+import { parseConfirmParams, parseRecoveryLink, RECOVERY_TYPES } from "./confirm";
 
 describe("parseConfirmParams", () => {
   it("aceita o link de confirmação de cadastro", () => {
@@ -31,5 +31,17 @@ describe("parseConfirmParams", () => {
       type: "recovery",
     });
     expect(parseConfirmParams({ token_hash: "abc123", type: "email" }, RECOVERY_TYPES)).toBeNull();
+  });
+
+  it("link de redefinição: aceita o formato do nosso modelo e o código padrão do Supabase", () => {
+    expect(parseRecoveryLink({ token_hash: "abc", type: "recovery" })).toEqual({
+      token_hash: "abc",
+      type: "recovery",
+    });
+    expect(parseRecoveryLink({ code: "xyz" })).toEqual({ code: "xyz" });
+    expect(parseRecoveryLink({ token_hash: "abc", type: "email" })).toBeNull();
+    expect(parseRecoveryLink({ code: "" })).toBeNull();
+    expect(parseRecoveryLink({ code: ["a", "b"] })).toBeNull();
+    expect(parseRecoveryLink({})).toBeNull();
   });
 });

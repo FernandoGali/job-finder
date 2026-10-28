@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import type { ConfirmParams } from "@/lib/auth/confirm";
+import type { RecoveryLink } from "@/lib/auth/confirm";
 import { PASSWORD_MIN_LENGTH, passwordProblem } from "@/lib/auth/password";
 
 import { PasswordChecklist } from "./PasswordChecklist";
@@ -10,10 +10,10 @@ import { PasswordChecklist } from "./PasswordChecklist";
 type ResetState = { error: string | null };
 
 export function ResetPasswordForm({
-  params,
+  link,
   action,
 }: {
-  params: ConfirmParams;
+  link: RecoveryLink;
   action: (previous: ResetState, formData: FormData) => Promise<ResetState>;
 }) {
   const [state, formAction, pending] = useActionState(action, { error: null });
@@ -26,8 +26,9 @@ export function ResetPasswordForm({
   return (
     <form action={formAction} style={{ display: "grid", gap: 12, maxWidth: 360 }}>
       <h1>Criar senha nova</h1>
-      <input type="hidden" name="token_hash" value={params.tokenHash} />
-      <input type="hidden" name="type" value={params.type} />
+      {Object.entries(link).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       <label>
         Senha nova
         <input
