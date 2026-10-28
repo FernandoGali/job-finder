@@ -83,8 +83,6 @@ describe("ResumeList com análise", () => {
 
     expect(screen.getByRole("region", { name: "Perfil lido pela IA" })).toHaveTextContent("Analista de Dados");
     expect(screen.getByRole("button", { name: "Analisar de novo" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Buscar vagas" })).toBeInTheDocument();
-    expect(screen.getByLabelText("O que buscar")).toHaveValue("Analista de Dados");
   });
 
   it("oferece a análise quando o currículo ainda não foi analisado", () => {
@@ -92,7 +90,5 @@ describe("ResumeList com análise", () => {
 
     expect(screen.getByText("Este currículo ainda não foi analisado.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analisar" })).toBeInTheDocument();
-    // Sem perfil ainda não há o que buscar.
-    expect(screen.queryByRole("region", { name: "Buscar vagas" })).not.toBeInTheDocument();
   });
 });

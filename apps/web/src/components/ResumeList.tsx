@@ -2,7 +2,6 @@ import type { ResumesResult } from "@/lib/resumes";
 
 import { AnalyzeButton } from "./AnalyzeButton";
 import { DeleteResumeButton } from "./DeleteResumeButton";
-import { JobSearchLinks } from "./JobSearchLinks";
 import { ProfileCard } from "./ProfileCard";
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
@@ -28,45 +27,37 @@ export function ResumeList({ result }: { result: ResumesResult }) {
 
   const [latest, ...older] = result.resumes;
   return (
-    <>
-      <section aria-label="Meus currículos" style={{ display: "grid", gap: 8 }}>
-        <h2 style={{ marginBottom: 0 }}>Meu currículo</h2>
-        <p>
-          <strong>{latest.original_filename}</strong> · {formatSize(latest.size_bytes)} · enviado em{" "}
-          {dateFormat.format(new Date(latest.uploaded_at))}{" "}
-          <DeleteResumeButton resumeId={latest.id} filename={latest.original_filename} />
-        </p>
-        {latest.profile ? (
-          <>
-            <ProfileCard profile={latest.profile} />
-            <AnalyzeButton resumeId={latest.id} label="Analisar de novo" />
-          </>
-        ) : (
-          <>
-            <p>Este currículo ainda não foi analisado.</p>
-            <AnalyzeButton resumeId={latest.id} label="Analisar" />
-          </>
-        )}
-        {older.length > 0 && (
-          <details>
-            <summary>Envios anteriores ({older.length})</summary>
-            <ul>
-              {older.map((resume) => (
-                <li key={resume.id}>
-                  {resume.original_filename} · {dateFormat.format(new Date(resume.uploaded_at))}{" "}
-                  <DeleteResumeButton resumeId={resume.id} filename={resume.original_filename} />
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </section>
-      {latest.profile && (
-        <JobSearchLinks
-          suggestions={latest.profile.search_terms}
-          seniority={latest.profile.seniority}
-        />
+    <section aria-label="Meus currículos" style={{ display: "grid", gap: 8 }}>
+      <h2 style={{ marginBottom: 0 }}>Meu currículo</h2>
+      <p>
+        <strong>{latest.original_filename}</strong> · {formatSize(latest.size_bytes)} · enviado em{" "}
+        {dateFormat.format(new Date(latest.uploaded_at))}{" "}
+        <DeleteResumeButton resumeId={latest.id} filename={latest.original_filename} />
+      </p>
+      {latest.profile ? (
+        <>
+          <ProfileCard profile={latest.profile} />
+          <AnalyzeButton resumeId={latest.id} label="Analisar de novo" />
+        </>
+      ) : (
+        <>
+          <p>Este currículo ainda não foi analisado.</p>
+          <AnalyzeButton resumeId={latest.id} label="Analisar" />
+        </>
       )}
-    </>
+      {older.length > 0 && (
+        <details>
+          <summary>Envios anteriores ({older.length})</summary>
+          <ul>
+            {older.map((resume) => (
+              <li key={resume.id}>
+                {resume.original_filename} · {dateFormat.format(new Date(resume.uploaded_at))}{" "}
+                <DeleteResumeButton resumeId={resume.id} filename={resume.original_filename} />
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   );
 }

@@ -23,11 +23,11 @@ export function JobSearchLinks({
   const links = searchLinks(query, { location, remote, level });
 
   return (
-    <section aria-label="Buscar vagas" style={{ display: "grid", gap: 8 }}>
-      <h2 style={{ marginBottom: 0 }}>Buscar vagas</h2>
+    <section aria-label="Buscar em outros sites" style={{ display: "grid", gap: 8 }}>
+      <h2 style={{ marginBottom: 0 }}>Buscar em outros sites</h2>
       <p style={{ margin: 0, fontSize: "0.9em" }}>
-        Escolha uma sugestão ou escreva a sua. Cada botão abre o site da vaga já com a busca
-        preenchida.
+        Para ir além das vagas acima: escolha uma sugestão ou escreva a sua. Cada botão abre o
+        site já com a busca preenchida.
       </p>
       {suggestions.length > 0 && (
         <div role="group" aria-label="Sugestões de busca" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
