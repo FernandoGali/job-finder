@@ -14,7 +14,7 @@ describe("JobSearchLinks", () => {
     expect(screen.getByRole("button", { name: "Analista de Dados" })).toHaveAttribute("aria-pressed", "true");
     expect(linkedin()).toHaveAttribute(
       "href",
-      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22",
     );
     expect(linkedin()).toHaveAttribute("target", "_blank");
     expect(linkedin()).toHaveAttribute("rel", "noopener noreferrer");
@@ -27,7 +27,7 @@ describe("JobSearchLinks", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analista de BI" }));
 
     expect(screen.getByLabelText("O que buscar")).toHaveValue("Analista de BI");
-    expect(linkedin().getAttribute("href")).toContain("keywords=Analista%20de%20BI");
+    expect(linkedin().getAttribute("href")).toContain("keywords=%22Analista%20de%20BI%22");
   });
 
   it("atualiza os links quando a pessoa escreve a busca, o local e marca só remotas", () => {
@@ -39,7 +39,7 @@ describe("JobSearchLinks", () => {
 
     expect(linkedin()).toHaveAttribute(
       "href",
-      "https://www.linkedin.com/jobs/search/?keywords=Est%C3%A1gio%20BI&location=Curitiba&f_WT=2",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Est%C3%A1gio%20BI%22&location=Curitiba&f_WT=2",
     );
   });
 

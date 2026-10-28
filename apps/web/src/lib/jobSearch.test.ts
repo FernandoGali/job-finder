@@ -17,7 +17,7 @@ describe("searchLinks", () => {
   it("monta a busca de cada site com o termo e o local", () => {
     const options = { location: "São Paulo" };
     expect(urlOf("LinkedIn", "Analista de Dados", options)).toBe(
-      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=S%C3%A3o%20Paulo",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22&location=S%C3%A3o%20Paulo",
     );
     expect(urlOf("Indeed", "Analista de Dados", options)).toBe(
       "https://br.indeed.com/jobs?q=Analista%20de%20Dados&l=S%C3%A3o%20Paulo",
@@ -42,7 +42,7 @@ describe("searchLinks", () => {
 
   it("não coloca o local quando ele está vazio", () => {
     expect(urlOf("LinkedIn", "Analista de Dados", { location: "   " })).toBe(
-      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22",
     );
     expect(urlOf("Indeed", "Analista de Dados")).toBe("https://br.indeed.com/jobs?q=Analista%20de%20Dados");
   });
@@ -50,10 +50,10 @@ describe("searchLinks", () => {
   it("só remotas: filtro oficial no LinkedIn (no Brasil); os outros sites não mudam", () => {
     const remote = { remote: true };
     expect(urlOf("LinkedIn", "Analista de Dados", remote)).toBe(
-      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=Brasil&f_WT=2",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22&location=Brasil&f_WT=2",
     );
     expect(urlOf("LinkedIn", "Analista de Dados", { remote: true, location: "Minas Gerais" })).toBe(
-      "https://www.linkedin.com/jobs/search/?keywords=Analista%20de%20Dados&location=Minas%20Gerais&f_WT=2",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22&location=Minas%20Gerais&f_WT=2",
     );
     // "remoto" no termo quase zerava a busca nos outros sites: lá o filtro é feito no site.
     for (const site of ["Indeed", "Gupy", "Vagas.com.br", "InfoJobs", "Trampos"]) {
@@ -61,9 +61,17 @@ describe("searchLinks", () => {
     }
   });
 
+  it("no LinkedIn, busca a frase exata (entre aspas) sem duplicar aspas digitadas", () => {
+    expect(urlOf("LinkedIn", '"Analista de BI"')).toBe(
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20BI%22",
+    );
+    // Nos outros sites o termo vai como está.
+    expect(urlOf("Indeed", "Analista de BI")).toBe("https://br.indeed.com/jobs?q=Analista%20de%20BI");
+  });
+
   it("limpa espaços repetidos e protege caracteres especiais", () => {
     expect(urlOf("LinkedIn", "  Dados   &  BI ")).toBe(
-      "https://www.linkedin.com/jobs/search/?keywords=Dados%20%26%20BI",
+      "https://www.linkedin.com/jobs/search/?keywords=%22Dados%20%26%20BI%22",
     );
   });
 

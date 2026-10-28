@@ -31,10 +31,13 @@ const SITES: Site[] = [
   {
     name: "LinkedIn",
     build: (query, location, remote) => {
+      // Entre aspas, o LinkedIn busca a frase exata; sem elas, aceita anúncios com só parte
+      // das palavras (ex.: "Analista de Suporte" numa busca de BI).
+      const phrase = `"${query.replace(/"/g, "")}"`;
       // f_WT=2 é o filtro "Remoto" do LinkedIn; sem local, limita ao Brasil.
       const place = location || (remote ? "Brasil" : "");
       return (
-        `https://www.linkedin.com/jobs/search/?keywords=${q(query)}` +
+        `https://www.linkedin.com/jobs/search/?keywords=${q(phrase)}` +
         (place ? `&location=${q(place)}` : "") +
         (remote ? "&f_WT=2" : "")
       );
