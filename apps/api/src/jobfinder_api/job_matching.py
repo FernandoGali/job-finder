@@ -175,9 +175,12 @@ class JobMatch(BaseModel):
 
 
 def normalize(text: str) -> str:
-    """Minúsculas, sem acento e com espaços simples, para comparar textos."""
-    decomposed = unicodedata.normalize("NFKD", text)
-    without_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
+    """Minúsculas, sem acento e com espaços simples, para comparar textos.
+
+    Os acentos saem decompondo as letras e descartando o que não é ASCII, de uma vez só (bem
+    mais rápido que conferir letra por letra em descrições longas).
+    """
+    without_accents = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"\s+", " ", without_accents).casefold().strip()
 
 
@@ -188,11 +191,23 @@ def _words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9+#]+", joined)
 
 
-def _has_phrase(phrase: str, text: str) -> bool:
-    """A expressão aparece como palavras inteiras ("C" não vale dentro de "C++")."""
-    needle = normalize(phrase)
-    pattern = rf"(?<![\w+#]){re.escape(needle)}(?![\w+#])"
-    return bool(needle) and re.search(pattern, normalize(text)) is not None
+def _tokens(text: str) -> list[str]:
+    """Palavras normalizadas; "+" e "#" fazem parte da palavra ("c++", "c#")."""
+    return re.findall(r"[a-z0-9+#]+", normalize(text))
+
+
+def _phrases(text: str, max_words: int) -> set[str]:
+    """Todas as sequências de 1 a max_words palavras seguidas do texto.
+
+    Conferir uma competência vira uma consulta a este conjunto, feito uma vez por vaga. Antes,
+    cada competência era procurada na descrição inteira e o ranking de 517 vagas levava 14 s.
+    """
+    words = _tokens(text)
+    return {
+        " ".join(words[start : start + size])
+        for size in range(1, max_words + 1)
+        for start in range(len(words) - size + 1)
+    }
 
 
 def job_level(title: str) -> JobLevel | None:
@@ -266,8 +281,11 @@ def score_job(profile: ProfileForMatching, job: JobForMatching) -> JobMatch:
     elif fraction >= 0.5:
         reasons.append(f"Cargo parecido com “{term}”")
 
-    text = f"{job.title}\n{job.description}"
-    matched = [skill for skill in profile.skills if _has_phrase(skill, text)]
+    # Competência = sequência de palavras inteiras ("C" não vale dentro de "C++").
+    skill_keys = [(skill, " ".join(_tokens(skill))) for skill in profile.skills]
+    longest = max((key.count(" ") + 1 for _, key in skill_keys if key), default=1)
+    phrases = _phrases(f"{job.title}\n{job.description}", longest)
+    matched = [skill for skill, key in skill_keys if key and key in phrases]
     skill_points = round(40 * min(len(matched), SKILLS_FOR_FULL_SCORE) / SKILLS_FOR_FULL_SCORE)
     if matched:
         reasons.append("Pede " + ", ".join(matched[:5]) + (" e mais" if len(matched) > 5 else ""))
