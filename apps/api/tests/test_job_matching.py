@@ -8,6 +8,7 @@ from jobfinder_api.job_matching import (
     rank_jobs,
     score_job,
     title_match,
+    work_mode,
 )
 
 PROFILE = ProfileForMatching(
@@ -152,3 +153,38 @@ def test_motivo_de_cargo_parecido():
     match = score_job(PROFILE, job("Data Engineer"))
 
     assert "Cargo parecido com “Analista de Dados”" in match.reasons
+
+
+@pytest.mark.parametrize(
+    ("title", "location", "description", "mode"),
+    [
+        ("Analista de Dados (Híbrido/SP)", "São Paulo", "", "hibrido"),
+        ("Data Analyst", "Remote - Brazil", "", "remoto"),
+        ("Analista", "Presencial - Curitiba", "", "presencial"),
+        # Na descrição, só expressões contam; "auxílio home office" é benefício.
+        ("Analista", "Brasil", "Benefícios: auxílio home office e VR.", None),
+        ("Analista", "Brasil", "Atuação #LI-Onsite (presencial).", "presencial"),
+        ("Analista", "Brasil", "Somos uma empresa remote-first.", "remoto"),
+        ("Analista", "Brasil", "Trabalho 100% remoto.", "remoto"),
+        (
+            "Analista",
+            "Brasil",
+            "Atuamos no modelo híbrido, com a flexibilidade do trabalho remoto.",
+            "hibrido",
+        ),
+        ("Analista", "Brasil", "Disponibilidade para o modelo presencial.", "presencial"),
+        # Título e local valem mais que a descrição.
+        ("Analista (Remoto)", "Brasil", "Modelo presencial nas sextas.", "remoto"),
+        # Sinais que se contradizem sem híbrido: melhor não chutar.
+        ("Analista", "Brasil", "Modelo presencial. Também aceitamos trabalho remoto.", None),
+        ("Analista", "Brasil", "Sem informação.", None),
+    ],
+)
+def test_work_mode(title, location, description, mode):
+    assert work_mode(title, location, description) == mode
+
+
+def test_vaga_recomendada_traz_a_modalidade():
+    match = score_job(PROFILE, job("Analista de Dados (Remoto)"))
+
+    assert match.work_mode == "remoto"

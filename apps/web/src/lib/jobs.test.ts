@@ -11,6 +11,7 @@ const job = {
   score: 80,
   reasons: ["Pede SQL"],
   matched_skills: ["SQL"],
+  work_mode: "remoto" as const,
 };
 
 function json(body: unknown, status = 200) {

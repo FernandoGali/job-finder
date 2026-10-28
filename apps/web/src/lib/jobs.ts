@@ -1,5 +1,13 @@
 import { API_OFFLINE, apiBaseUrl, apiErrorMessage } from "./api";
 
+export type WorkMode = "remoto" | "hibrido" | "presencial";
+
+export const WORK_MODE_LABELS: Record<WorkMode, string> = {
+  remoto: "Remoto",
+  hibrido: "Híbrido",
+  presencial: "Presencial",
+};
+
 export type JobMatch = {
   id: string;
   title: string;
@@ -9,6 +17,7 @@ export type JobMatch = {
   score: number;
   reasons: string[];
   matched_skills: string[];
+  work_mode: WorkMode | null;
 };
 
 export type JobMatchesResult =

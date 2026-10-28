@@ -1,9 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { WorkMode } from "@/lib/jobs";
+
 import { JobMatches } from "./JobMatches";
 
-function job(id: string, score: number) {
+function job(id: string, score: number, workMode: WorkMode | null = null) {
   return {
     id,
     title: `Vaga ${id}`,
@@ -13,6 +15,7 @@ function job(id: string, score: number) {
     score,
     reasons: ["Cargo compatível com Analista de Dados", "Pede SQL, Python"],
     matched_skills: ["SQL", "Python"],
+    work_mode: workMode,
   };
 }
 
@@ -35,6 +38,14 @@ describe("JobMatches", () => {
 
     expect(screen.getByText("Combina muito")).toBeInTheDocument();
     expect(screen.getByText("Combina")).toBeInTheDocument();
+  });
+
+  it("mostra a modalidade quando a vaga informa, e nada quando não informa", () => {
+    render(<JobMatches result={{ state: "ok", jobs: [job("1", 80, "hibrido"), job("2", 40)] }} />);
+
+    expect(screen.getByText("Híbrido")).toBeInTheDocument();
+    expect(screen.queryByText("Remoto")).not.toBeInTheDocument();
+    expect(screen.queryByText("Presencial")).not.toBeInTheDocument();
   });
 
   it("avisa quando nenhuma vaga combina", () => {

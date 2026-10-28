@@ -21,6 +21,23 @@ MAX_RESULTS = 20
 SKILLS_FOR_FULL_SCORE = 6
 
 JobLevel = Literal["estagio", "junior", "pleno", "senior", "gestao"]
+WorkMode = Literal["remoto", "hibrido", "presencial"]
+
+# Modalidade. No título e no local, a palavra basta ("Analista (Híbrido/SP)", "Remoto").
+WORK_MODE_IN_HEADER: dict[WorkMode, str] = {
+    "remoto": r"\b(remoto|remota|remote|home ?office)\b",
+    "hibrido": r"\b(hibrido|hibrida|hybrid)\b",
+    "presencial": r"\b(presencial|on-?site)\b",
+}
+# Na descrição, só expressões: "auxílio home office" é benefício, não modalidade. As
+# etiquetas #li-* são o padrão do LinkedIn que algumas empresas usam (ex.: Stone).
+WORK_MODE_IN_DESCRIPTION: dict[WorkMode, str] = {
+    "remoto": r"#li-remote|remote-first|fully remote|100% remot"
+    r"|(modelo|regime|formato|trabalho) (de trabalho )?(100% )?remot",
+    "hibrido": r"#li-hybrid|(modelo|regime|formato) (de trabalho )?hibrid|hybrid (model|work)",
+    "presencial": r"#li-onsite|(modelo|regime|formato|rotina) (de trabalho )?presencial"
+    r"|100% presencial",
+}
 
 # Equivalências PT -> EN para comparar termos em português com títulos em inglês.
 SYNONYMS: dict[str, set[str]] = {
@@ -154,6 +171,7 @@ class JobMatch(BaseModel):
     score: int
     reasons: list[str]
     matched_skills: list[str]
+    work_mode: WorkMode | None = None
 
 
 def normalize(text: str) -> str:
@@ -183,6 +201,27 @@ def job_level(title: str) -> JobLevel | None:
     for level in ("gestao", "senior", "pleno", "junior", "estagio"):
         if words & LEVEL_MARKERS[level]:
             return level
+    return None
+
+
+def work_mode(title: str, location: str, description: str) -> WorkMode | None:
+    """Remoto, híbrido ou presencial. Título e local valem mais que a descrição.
+
+    Se mais de uma aparece e uma delas é híbrido, vale híbrido ("modelo híbrido, com a
+    flexibilidade do trabalho remoto"). Sem sinal claro, None: melhor não mostrar que chutar.
+    """
+    for text, patterns in (
+        (f"{title} {location}", WORK_MODE_IN_HEADER),
+        (description, WORK_MODE_IN_DESCRIPTION),
+    ):
+        normalized = normalize(text)
+        found = [mode for mode, pattern in patterns.items() if re.search(pattern, normalized)]
+        if len(found) == 1:
+            return found[0]
+        if "hibrido" in found:
+            return "hibrido"
+        if found:
+            return None
     return None
 
 
@@ -257,6 +296,7 @@ def score_job(profile: ProfileForMatching, job: JobForMatching) -> JobMatch:
         score=score,
         reasons=reasons,
         matched_skills=matched,
+        work_mode=work_mode(job.title, job.location, job.description),
     )
 
 

@@ -1,4 +1,4 @@
-import type { JobMatchesResult } from "@/lib/jobs";
+import { type JobMatchesResult, WORK_MODE_LABELS } from "@/lib/jobs";
 
 // Mesma escala da API (job_matching.py): a partir de 30 a vaga entra na lista.
 const STRONG_MATCH = 60;
@@ -44,6 +44,12 @@ export function JobMatches({ result }: { result: JobMatchesResult }) {
               <span style={{ fontSize: "0.9em" }}>
                 {job.company}
                 {job.location ? ` · ${job.location}` : ""}
+                {job.work_mode && (
+                  <>
+                    {" · "}
+                    <strong>{WORK_MODE_LABELS[job.work_mode]}</strong>
+                  </>
+                )}
               </span>
               <ul style={{ margin: 0, paddingLeft: 20, fontSize: "0.85em" }}>
                 {job.reasons.map((reason) => (

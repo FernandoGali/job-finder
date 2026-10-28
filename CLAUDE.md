@@ -6,6 +6,8 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 
 ## Como trabalhamos
 
+- Commits e PRs sem a linha `Co-Authored-By: Claude` (o Fernando não quer o Claude como colaborador no GitHub).
+
 - O Fernando traz as ideias e valida cada entrega; o Claude escreve o código.
 - Trabalhar em fatias pequenas e testáveis (uma tela, um endpoint, um conector). Mostrar o resultado e esperar aprovação antes da próxima fatia.
 - Explicar em português, de forma simples: o Fernando está aprendendo o fluxo de desenvolvimento.
@@ -60,7 +62,7 @@ O plano completo (arquitetura, fluxo, modelo de dados, API, planos, fontes, road
 - Fontes de vagas (28/10/2026): Adzuna exige licença para produto com receita, só entrega trecho da descrição e a conta grátis tem 25 chamadas de teste (acesso completo: £8/mês, 5.000 chamadas/mês). Ficou para depois; conta criada pelo Fernando, chaves ainda não usadas. Escolhida a Greenhouse: API pública de quadros de vagas ("Job Board data is publicly available"; robots.txt só bloqueia /embed/), grátis, descrição completa, cobre só as empresas da lista `GREENHOUSE_BOARDS` em `job_sources.py`.
 - Feito: conector fatia 1 (coleta) — tabela `jobs` (fechada para usuários; só a API com a chave secreta), `job_sources.py` lê e normaliza a Greenhouse, `job_sync.py` grava/atualiza e apaga as vagas fechadas; falha numa fonte não apaga nada dela. Rodar à mão: `python -m jobfinder_api.job_sync` em `apps/api`. Leitura real em 28/10: 517 vagas (Stone 361, QuintoAndar 109, VTEX 33, Wildlife 14), ~25 de dados/BI, a maioria sênior.
 - Feito: conector fatia 2 (ranking, sem IA) — `job_matching.py`: nota 0-100 = cargo (até 50: palavras da área do termo no título, com sinônimos PT/EN e "Business Intelligence" = BI; palavra genérica como "analista" sozinha não conta) + competências na vaga (até 40) + nível (+10 compatível, +5 não informado; nível fora do perfil zera a vaga). Nota mínima 30, até 20 vagas. Motivo montado só com o que foi achado no texto. `GET /vagas` usa o currículo analisado mais recente e não devolve a descrição (regra 4). Com o perfil do Fernando e as 517 vagas de 28/10: 7 vagas, todas de dados/BI e nível compatível.
-- Feito: conector fatia 3 — "Vagas para você" na Minha área (logo abaixo do currículo): título, empresa · cidade, etiqueta "Combina muito" (nota 60+) ou "Combina", motivos e "Ver vaga e candidatar-se" (abre a vaga na fonte). A busca pronta virou "Buscar em outros sites", abaixo. Falta o teste do Fernando.
+- Feito: conector fatia 3 — "Vagas para você" na Minha área (logo abaixo do currículo): título, empresa · cidade, etiqueta "Combina muito" (nota 60+) ou "Combina", motivos e "Ver vaga e candidatar-se" (abre a vaga na fonte). Modalidade (remoto/híbrido/presencial) detectada por `work_mode`: título e local primeiro; na descrição só expressões ("modelo híbrido", "#li-onsite", "remote-first"), porque "auxílio home office" é benefício; com híbrido junto de outra, vale híbrido; sem sinal claro, não mostra. Nas 517 vagas de 28/10: 397 identificadas. A busca pronta virou "Buscar em outros sites", abaixo. Falta o teste do Fernando.
 - Próximo: coleta automática (hoje é à mão) e mais empresas na lista `GREENHOUSE_BOARDS`.
 - Termo de consentimento: o texto fica em `apps/web/src/lib/resumes.ts`. Mudou o texto? Subir `CONSENT_VERSION` lá e na API (`resumes.py`) juntos.
 
