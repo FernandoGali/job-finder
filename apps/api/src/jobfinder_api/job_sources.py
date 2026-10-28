@@ -15,12 +15,45 @@ from pydantic import BaseModel
 GREENHOUSE_API = "https://boards-api.greenhouse.io/v1/boards"
 
 # Empresas cujo quadro de vagas na Greenhouse é lido. Chave: o "board token" da URL.
+# Conferidas em 29/10/2026 (vagas no Brasil entre parênteses). De fora: "juno" (vagas só nos
+# EUA, provavelmente outra empresa), "wise" (outra empresa), nubank e flash (quadro vazio).
 GREENHOUSE_BOARDS: dict[str, str] = {
-    "stone": "Stone",
-    "quintoandar": "QuintoAndar",
-    "vtex": "VTEX",
-    "wildlifestudios": "Wildlife Studios",
+    "stone": "Stone",  # 369
+    "btgpactual": "BTG Pactual",  # 250
+    "c6bank": "C6 Bank",  # 156
+    "inter": "Inter",  # 144
+    "xpinc": "XP Inc.",  # 94
+    "agibank": "Agibank",  # 91
+    "quintoandar": "QuintoAndar",  # 85
+    "gympass": "Wellhub",  # 52
+    "arcoeducacao": "Arco Educação",  # 43
+    "ebanx": "EBANX",  # 27
+    "vtex": "VTEX",  # 19
+    "jusbrasil": "Jusbrasil",  # 17
+    "wildlifestudios": "Wildlife Studios",  # 14
+    "getnet": "Getnet",  # 11
+    "bancopan": "Banco PAN",  # 11
+    "rdstation": "RD Station",  # 9
 }
+
+# O Job Finder é para vagas no Brasil. São empresas brasileiras, então vale o contrário de uma
+# lista de cidades (que deixaria Jundiaí ou Paranaguá de fora): só sai o que é claramente de
+# fora. Se o local cita o Brasil junto com outro país, a vaga fica.
+BRAZIL = re.compile(r"\bbra[sz]il\b", re.IGNORECASE)
+ABROAD = re.compile(
+    r"\b(mexico|m[eé]xico|cdmx|argentina|buenos aires|uruguay|uruguai|montevideo|chile|"
+    r"santiago de chile|colombia|col[oô]mbia|bogot[aá]|medell[ií]n|peru|lima|"
+    r"united states|usa|us|eua|miami|florida|fl|new york|ny|manhattan|san francisco|"
+    r"canada|uk|united kingdom|london|ireland|dublin|germany|berlin|munich|"
+    r"netherlands|amsterdam|spain|espanha|madrid|barcelona|boadilla|italy|milan|"
+    r"portugal|lisbon|lisboa|porto, portugal|france|paris|poland|warsaw|romania|bucharest|"
+    r"india|singapore|china|shanghai|japan|tokyo|australia)\b",
+    re.IGNORECASE,
+)
+
+
+def is_brazil_location(location: str) -> bool:
+    return bool(BRAZIL.search(location)) or not ABROAD.search(location)
 
 
 class JobPosting(BaseModel):
@@ -59,6 +92,9 @@ def parse_greenhouse(board: str, payload: dict) -> list[JobPosting]:
         url = raw.get("absolute_url") or ""
         if not url.startswith("https://"):
             continue  # sem link seguro para a candidatura, a vaga não serve
+        location = ((raw.get("location") or {}).get("name") or "").strip()
+        if not is_brazil_location(location):
+            continue
         jobs.append(
             JobPosting(
                 source="greenhouse",
@@ -66,7 +102,7 @@ def parse_greenhouse(board: str, payload: dict) -> list[JobPosting]:
                 external_id=str(raw["id"]),
                 company=raw.get("company_name") or GREENHOUSE_BOARDS.get(board, board),
                 title=raw["title"].strip(),
-                location=((raw.get("location") or {}).get("name") or "").strip(),
+                location=location,
                 description=html_to_text(raw.get("content") or ""),
                 url=url,
                 published_at=raw.get("first_published"),

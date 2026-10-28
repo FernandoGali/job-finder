@@ -5,6 +5,7 @@ from jobfinder_api.job_sources import (
     JobSourceError,
     fetch_greenhouse,
     html_to_text,
+    is_brazil_location,
     parse_greenhouse,
 )
 
@@ -97,3 +98,29 @@ async def test_fetch_greenhouse_falha_vira_job_source_error(handler):
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         with pytest.raises(JobSourceError):
             await fetch_greenhouse(http, "quintoandar")
+
+
+@pytest.mark.parametrize(
+    ("location", "kept"),
+    [
+        ("São Paulo, São Paulo, Brazil", True),
+        ("Brasil", True),
+        ("Jundiaí", True),  # cidade brasileira fora de qualquer lista: fica
+        ("Remoto", True),
+        ("", True),
+        ("Mexico City, Mexico City, Mexico", False),
+        ("UK (London - Hybrid)", False),
+        ("US (Remote)", False),
+        ("Miami, FL", False),
+        ("Spain - Boadilla del Monte, Madrid", False),
+        ("Argentina; São Paulo, Brazil", True),  # cita o Brasil: fica
+    ],
+)
+def test_so_vagas_no_brasil(location, kept):
+    assert is_brazil_location(location) is kept
+
+
+def test_parse_greenhouse_descarta_vagas_fora_do_brasil():
+    payload = {"jobs": [{**PAYLOAD["jobs"][0], "location": {"name": "Mexico City, Mexico"}}]}
+
+    assert parse_greenhouse("quintoandar", payload) == []
