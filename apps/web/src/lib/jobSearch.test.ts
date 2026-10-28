@@ -73,6 +73,21 @@ describe("searchLinks", () => {
     expect(urlOf("Indeed", '"Analista (BI)"')).toBe("https://br.indeed.com/jobs?q=title%3A(Analista%20BI)");
   });
 
+  it("nível: filtro de experiência do LinkedIn e do Indeed; estágio vira tipo de vaga no Indeed", () => {
+    expect(urlOf("LinkedIn", "Analista de Dados", { level: "junior" })).toBe(
+      "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22&f_E=2%2C3",
+    );
+    expect(urlOf("LinkedIn", "Analista de Dados", { level: "estagio" })).toContain("&f_E=1");
+    expect(urlOf("Indeed", "Analista de Dados", { level: "junior" })).toBe(
+      "https://br.indeed.com/jobs?q=title%3A(Analista%20de%20Dados)&sc=0kf%3Aexplvl(ENTRY_LEVEL)%3B",
+    );
+    expect(urlOf("Indeed", "Analista de Dados", { level: "pleno" })).toContain("explvl(MID_LEVEL)");
+    expect(urlOf("Indeed", "Analista de Dados", { level: "estagio" })).toContain("&jt=internship");
+    // Sem nível escolhido, nenhum filtro; e os outros sites não mudam.
+    expect(urlOf("LinkedIn", "Analista de Dados", { level: null })).not.toContain("f_E");
+    expect(urlOf("Gupy", "Analista de Dados", { level: "junior" })).toBe(urlOf("Gupy", "Analista de Dados"));
+  });
+
   it("limpa espaços repetidos e protege caracteres especiais", () => {
     expect(urlOf("LinkedIn", "  Dados   &  BI ")).toBe(
       "https://www.linkedin.com/jobs/search/?keywords=%22Dados%20%26%20BI%22",

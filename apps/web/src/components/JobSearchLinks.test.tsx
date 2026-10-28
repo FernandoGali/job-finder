@@ -43,6 +43,17 @@ describe("JobSearchLinks", () => {
     );
   });
 
+  it("o nível começa com a senioridade do perfil e pode virar qualquer nível", () => {
+    render(<JobSearchLinks suggestions={SUGGESTIONS} seniority="junior" />);
+
+    expect(screen.getByLabelText("Nível (LinkedIn e Indeed)")).toHaveValue("junior");
+    expect(linkedin().getAttribute("href")).toContain("f_E=2%2C3");
+
+    fireEvent.change(screen.getByLabelText("Nível (LinkedIn e Indeed)"), { target: { value: "" } });
+
+    expect(linkedin().getAttribute("href")).not.toContain("f_E");
+  });
+
   it("sem sugestões, começa vazio e pede um termo", () => {
     render(<JobSearchLinks suggestions={[]} />);
 

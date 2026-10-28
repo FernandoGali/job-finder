@@ -61,7 +61,12 @@ export function ResumeList({ result }: { result: ResumesResult }) {
           </details>
         )}
       </section>
-      {latest.profile && <JobSearchLinks suggestions={latest.profile.search_terms} />}
+      {latest.profile && (
+        <JobSearchLinks
+          suggestions={latest.profile.search_terms}
+          seniority={latest.profile.seniority}
+        />
+      )}
     </>
   );
 }

@@ -5,11 +5,36 @@
  * coleta nada desses sites (regra 3 do CLAUDE.md).
  */
 
+import type { Seniority } from "./resumes";
+
 export type SearchLink = { site: string; url: string };
 
-export type SearchOptions = { location?: string; remote?: boolean };
+export type SearchOptions = { location?: string; remote?: boolean; level?: Seniority | null };
 
-type Site = { name: string; build: (query: string, location: string, remote: boolean) => string };
+type Options = { location: string; remote: boolean; level: Seniority | null };
+
+type Site = { name: string; build: (query: string, options: Options) => string };
+
+// Filtro "Nível de experiência" do LinkedIn (f_E): 1 Estágio, 2 Assistente, 3 Júnior,
+// 4 Pleno-sênior, 5 Diretor, 6 Executivo.
+const LINKEDIN_LEVELS: Record<Seniority, string> = {
+  estagio: "1",
+  junior: "2,3",
+  pleno: "4",
+  senior: "4",
+  especialista: "4",
+  gestao: "5,6",
+};
+
+// Indeed: estágio é tipo de vaga (jt=internship); os demais usam o nível de experiência.
+const INDEED_LEVELS: Record<Seniority, string> = {
+  estagio: "&jt=internship",
+  junior: `&sc=${encodeURIComponent("0kf:explvl(ENTRY_LEVEL);")}`,
+  pleno: `&sc=${encodeURIComponent("0kf:explvl(MID_LEVEL);")}`,
+  senior: `&sc=${encodeURIComponent("0kf:explvl(SENIOR_LEVEL);")}`,
+  especialista: `&sc=${encodeURIComponent("0kf:explvl(SENIOR_LEVEL);")}`,
+  gestao: `&sc=${encodeURIComponent("0kf:explvl(SENIOR_LEVEL);")}`,
+};
 
 /** "Análise de Dados" -> "analise-de-dados", para sites que usam a busca no caminho do link. */
 export function slugify(text: string): string {
@@ -30,7 +55,7 @@ const q = encodeURIComponent;
 const SITES: Site[] = [
   {
     name: "LinkedIn",
-    build: (query, location, remote) => {
+    build: (query, { location, remote, level }) => {
       // Entre aspas, o LinkedIn busca a frase exata; sem elas, aceita anúncios com só parte
       // das palavras (ex.: "Analista de Suporte" numa busca de BI).
       const phrase = `"${query.replace(/"/g, "")}"`;
@@ -39,7 +64,8 @@ const SITES: Site[] = [
       return (
         `https://www.linkedin.com/jobs/search/?keywords=${q(phrase)}` +
         (place ? `&location=${q(place)}` : "") +
-        (remote ? "&f_WT=2" : "")
+        (remote ? "&f_WT=2" : "") +
+        (level ? `&f_E=${q(LINKEDIN_LEVELS[level])}` : "")
       );
     },
   },
@@ -47,9 +73,10 @@ const SITES: Site[] = [
     name: "Indeed",
     // title:(...) é a busca avançada do Indeed: todas as palavras no título da vaga, o que
     // corta anúncios genéricos que só citam o termo na descrição.
-    build: (query, location) =>
+    build: (query, { location, level }) =>
       `https://br.indeed.com/jobs?q=${q(`title:(${query.replace(/[()"]/g, "")})`)}` +
-      (location ? `&l=${q(location)}` : ""),
+      (location ? `&l=${q(location)}` : "") +
+      (level ? INDEED_LEVELS[level] : ""),
   },
   {
     name: "Gupy",
@@ -69,11 +96,14 @@ const SITES: Site[] = [
   },
 ];
 
-export function searchLinks(query: string, { location = "", remote = false }: SearchOptions = {}): SearchLink[] {
+export function searchLinks(
+  query: string,
+  { location = "", remote = false, level = null }: SearchOptions = {},
+): SearchLink[] {
   const cleanQuery = query.trim().replace(/\s+/g, " ");
   if (!slugify(cleanQuery)) {
     return [];
   }
-  const cleanLocation = location.trim().replace(/\s+/g, " ");
-  return SITES.map((site) => ({ site: site.name, url: site.build(cleanQuery, cleanLocation, remote) }));
+  const options = { location: location.trim().replace(/\s+/g, " "), remote, level };
+  return SITES.map((site) => ({ site: site.name, url: site.build(cleanQuery, options) }));
 }

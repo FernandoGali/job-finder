@@ -3,16 +3,24 @@
 import { useState } from "react";
 
 import { searchLinks } from "@/lib/jobSearch";
+import { type Seniority, SENIORITY_LABELS } from "@/lib/resumes";
 
 /**
  * Busca pronta: as sugestões vêm da análise do currículo, a pessoa escolhe ou ajusta,
  * e cada botão abre o site da vaga com a busca preenchida.
  */
-export function JobSearchLinks({ suggestions }: { suggestions: string[] }) {
+export function JobSearchLinks({
+  suggestions,
+  seniority = null,
+}: {
+  suggestions: string[];
+  seniority?: Seniority | null;
+}) {
   const [query, setQuery] = useState(suggestions[0] ?? "");
   const [location, setLocation] = useState("");
   const [remote, setRemote] = useState(false);
-  const links = searchLinks(query, { location, remote });
+  const [level, setLevel] = useState<Seniority | null>(seniority);
+  const links = searchLinks(query, { location, remote, level });
 
   return (
     <section aria-label="Buscar vagas" style={{ display: "grid", gap: 8 }}>
@@ -47,6 +55,21 @@ export function JobSearchLinks({ suggestions }: { suggestions: string[] }) {
           style={{ display: "block", width: "100%" }}
         />
       </label>
+      <label>
+        Nível (LinkedIn e Indeed)
+        <select
+          value={level ?? ""}
+          onChange={(event) => setLevel((event.target.value || null) as Seniority | null)}
+          style={{ display: "block" }}
+        >
+          <option value="">Qualquer nível</option>
+          {(Object.keys(SENIORITY_LABELS) as Seniority[]).map((key) => (
+            <option key={key} value={key}>
+              {SENIORITY_LABELS[key]}
+            </option>
+          ))}
+        </select>
+      </label>
       <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input type="checkbox" checked={remote} onChange={(event) => setRemote(event.target.checked)} />
         Só vagas remotas (LinkedIn)
@@ -65,8 +88,9 @@ export function JobSearchLinks({ suggestions }: { suggestions: string[] }) {
         <p role="status">Escreva o que buscar para ver os links.</p>
       )}
       <p style={{ margin: 0, fontSize: "0.8em" }}>
-        O local é usado só no LinkedIn e no Indeed. Nos outros sites, escolha a cidade, o nível
-        (júnior, pleno…) e a modalidade (remoto, híbrido) nos filtros do próprio site.
+        O local e o nível são usados só no LinkedIn e no Indeed. Nos outros sites, escolha a
+        cidade, o nível (júnior, pleno…) e a modalidade (remoto, híbrido) nos filtros do próprio
+        site.
       </p>
     </section>
   );
