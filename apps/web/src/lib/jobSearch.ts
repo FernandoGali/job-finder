@@ -46,6 +46,52 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// Remotar: números internos das tags de nível (t=) e das áreas (c=), lidos pelo Fernando nos
+// filtros do site em 29/10/2026. Gestão não tem tag de nível lá.
+const REMOTAR_LEVELS: Partial<Record<Seniority, string>> = {
+  estagio: "10",
+  junior: "17",
+  pleno: "21",
+  senior: "23",
+  especialista: "23",
+};
+
+// Área do Remotar pelas palavras do cargo (sem acento, minúsculas), na ordem: a primeira regra que
+// bate vale. As mais específicas vêm antes ("mobile" antes de "desenvolvedor", "ux" antes de
+// "design"). "Analista de Qualidade" é qualidade industrial, não QA de software: por isso QA só
+// com "qa", "tester" ou "testes". Sem regra que bata, o link vai sem área (melhor que chutar).
+const REMOTAR_AREAS: [string[], string][] = [
+  [["dados", "data", "bi", "analytics", "cientista"], "4"],
+  [["qa", "tester", "testes"], "8"],
+  [["devops", "sre"], "7"],
+  [["sysadmin", "infraestrutura", "redes"], "9"],
+  [["mobile", "android", "ios", "flutter"], "14"],
+  [["desenvolvedor", "desenvolvedora", "programador", "developer", "software", "backend", "frontend", "fullstack"], "13"],
+  [["ux", "ui"], "6"],
+  [["motion"], "11"],
+  [["design", "designer"], "5"],
+  [["produto", "product"], "15"],
+  [["seo", "conteudo", "redator", "redatora", "copywriter"], "3"],
+  [["marketing", "growth"], "10"],
+  [["vendas", "comercial", "sdr", "negocios", "vendedor"], "17"],
+  [["rh", "recrutador", "recrutadora", "recrutamento", "people"], "16"],
+  [["suporte", "atendimento", "sucesso"], "2"],
+  [["juridico", "advogado", "advogada"], "19"],
+  [["professor", "professora", "educacao", "instrutor", "pedagogo"], "22"],
+  [["comunicacao", "jornalista"], "20"],
+  [["midia"], "21"],
+  [["financeiro", "financeira", "administrativo", "administrativa", "operacoes", "contabil", "fiscal"], "1"],
+];
+
+/** Área do Remotar para o termo de busca, ou null se nenhuma regra bater. */
+export function remotarArea(query: string): string | null {
+  const words = new Set(slugify(query).split("-"));
+  if (words.has("recursos") && words.has("humanos")) {
+    return "16";
+  }
+  return REMOTAR_AREAS.find(([keys]) => keys.some((key) => words.has(key)))?.[1] ?? null;
+}
+
 const q = encodeURIComponent;
 
 // Conferidos em 27/10/2026 (LinkedIn, Vagas.com.br e InfoJobs por requisição; Indeed, Gupy e
@@ -96,10 +142,22 @@ const SITES: Site[] = [
   },
   {
     // Só vagas remotas. Formato conferido pelo Fernando no navegador em 29/10/2026, com "+" no
-    // lugar dos espaços. A coleta automática do Remotar não é permitida pelos termos de uso
-    // deles; o link é só para a pessoa abrir.
+    // lugar dos espaços; só o nome do cargo filtra mal, por isso vão também a área (c) e a tag
+    // de nível (t). A coleta automática do Remotar não é permitida pelos termos de uso deles; o
+    // link é só para a pessoa abrir.
     name: "Remotar",
-    build: (query) => `https://remotar.com.br/search/jobs?${new URLSearchParams({ q: query })}`,
+    build: (query, { level }) => {
+      const params = new URLSearchParams({ q: query });
+      const area = remotarArea(query);
+      if (area) {
+        params.set("c", area);
+      }
+      const tag = level && REMOTAR_LEVELS[level];
+      if (tag) {
+        params.set("t", tag);
+      }
+      return `https://remotar.com.br/search/jobs?${params}`;
+    },
   },
 ];
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type SearchOptions, searchLinks, slugify } from "./jobSearch";
+import { remotarArea, type SearchOptions, searchLinks, slugify } from "./jobSearch";
 
 function urlOf(site: string, query: string, options: SearchOptions = {}) {
   return searchLinks(query, options).find((link) => link.site === site)?.url;
@@ -34,9 +34,12 @@ describe("searchLinks", () => {
     expect(urlOf("Trampos", "Analista de Dados")).toBe(
       "https://trampos.co/oportunidades?tr=Analista%20de%20Dados",
     );
-    // Igual ao endereço que o próprio Remotar monta ao buscar.
-    expect(urlOf("Remotar", "analista de dados")).toBe("https://remotar.com.br/search/jobs?q=analista+de+dados");
-    expect(urlOf("Remotar", "Análise & BI")).toBe("https://remotar.com.br/search/jobs?q=An%C3%A1lise+%26+BI");
+    // Igual ao endereço que o próprio Remotar monta ao buscar, com área e nível.
+    expect(urlOf("Remotar", "analista de dados", { level: "junior" })).toBe(
+      "https://remotar.com.br/search/jobs?q=analista+de+dados&c=4&t=17",
+    );
+    // Sem nível escolhido e cargo sem área conhecida: só a busca.
+    expect(urlOf("Remotar", "Inspetor de Solda")).toBe("https://remotar.com.br/search/jobs?q=Inspetor+de+Solda");
   });
 
   it("não tem mais o Glassdoor (o link não preenchia a busca)", () => {
@@ -100,5 +103,39 @@ describe("searchLinks", () => {
   it("não monta links sem termo de busca", () => {
     expect(searchLinks("")).toEqual([]);
     expect(searchLinks("  --- ")).toEqual([]);
+  });
+});
+
+describe("Remotar: nível e área", () => {
+  const remotar = (query: string, options: SearchOptions = {}) => urlOf("Remotar", query, options);
+
+  it("põe a tag de nível de cada senioridade; gestão fica sem tag", () => {
+    expect(remotar("Analista de BI", { level: "estagio" })).toContain("&t=10");
+    expect(remotar("Analista de BI", { level: "pleno" })).toContain("&t=21");
+    expect(remotar("Analista de BI", { level: "senior" })).toContain("&t=23");
+    expect(remotar("Analista de BI", { level: "especialista" })).toContain("&t=23");
+    expect(remotar("Analista de BI", { level: "gestao" })).not.toContain("t=");
+  });
+
+  it("escolhe a área pelas palavras do cargo", () => {
+    expect(remotarArea("Analista de BI")).toBe("4");
+    expect(remotarArea("Data Analyst")).toBe("4");
+    expect(remotarArea("Desenvolvedor Mobile")).toBe("14"); // mobile antes de desenvolvedor
+    expect(remotarArea("Desenvolvedor Back-end")).toBe("13");
+    expect(remotarArea("Designer UX")).toBe("6"); // UX antes de design
+    expect(remotarArea("Product Manager")).toBe("15");
+    expect(remotarArea("Product Designer")).toBe("5"); // é cargo de design
+    expect(remotarArea("Analista de Recursos Humanos")).toBe("16");
+    expect(remotarArea("Analista de Marketing")).toBe("10");
+    expect(remotarArea("Analista Financeiro")).toBe("1");
+    expect(remotarArea("Analista de QA")).toBe("8");
+  });
+
+  it("qualidade industrial não vira QA de software, e cargo sem regra fica sem área", () => {
+    expect(remotarArea("Analista de Qualidade")).toBeNull();
+    expect(remotarArea("Inspetor de Qualidade")).toBeNull();
+    expect(remotar("Analista de Qualidade", { level: "junior" })).toBe(
+      "https://remotar.com.br/search/jobs?q=Analista+de+Qualidade&t=17",
+    );
   });
 });
