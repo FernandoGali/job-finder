@@ -94,6 +94,13 @@ const SITES: Site[] = [
     name: "Trampos",
     build: (query) => `https://trampos.co/oportunidades?tr=${q(query)}`,
   },
+  {
+    // Só vagas remotas. Formato conferido pelo Fernando no navegador em 29/10/2026, com "+" no
+    // lugar dos espaços. A coleta automática do Remotar não é permitida pelos termos de uso
+    // deles; o link é só para a pessoa abrir.
+    name: "Remotar",
+    build: (query) => `https://remotar.com.br/search/jobs?${new URLSearchParams({ q: query })}`,
+  },
 ];
 
 export function searchLinks(

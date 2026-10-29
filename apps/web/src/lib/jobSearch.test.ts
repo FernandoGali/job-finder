@@ -34,6 +34,9 @@ describe("searchLinks", () => {
     expect(urlOf("Trampos", "Analista de Dados")).toBe(
       "https://trampos.co/oportunidades?tr=Analista%20de%20Dados",
     );
+    // Igual ao endereço que o próprio Remotar monta ao buscar.
+    expect(urlOf("Remotar", "analista de dados")).toBe("https://remotar.com.br/search/jobs?q=analista+de+dados");
+    expect(urlOf("Remotar", "Análise & BI")).toBe("https://remotar.com.br/search/jobs?q=An%C3%A1lise+%26+BI");
   });
 
   it("não tem mais o Glassdoor (o link não preenchia a busca)", () => {
@@ -56,7 +59,7 @@ describe("searchLinks", () => {
       "https://www.linkedin.com/jobs/search/?keywords=%22Analista%20de%20Dados%22&location=Minas%20Gerais&f_WT=2",
     );
     // "remoto" no termo quase zerava a busca nos outros sites: lá o filtro é feito no site.
-    for (const site of ["Indeed", "Gupy", "Vagas.com.br", "InfoJobs", "Trampos"]) {
+    for (const site of ["Indeed", "Gupy", "Vagas.com.br", "InfoJobs", "Trampos", "Remotar"]) {
       expect(urlOf(site, "Analista de Dados", remote)).toBe(urlOf(site, "Analista de Dados"));
     }
   });

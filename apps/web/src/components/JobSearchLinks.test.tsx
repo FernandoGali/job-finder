@@ -18,7 +18,7 @@ describe("JobSearchLinks", () => {
     );
     expect(linkedin()).toHaveAttribute("target", "_blank");
     expect(linkedin()).toHaveAttribute("rel", "noopener noreferrer");
-    expect(screen.getAllByRole("link")).toHaveLength(6);
+    expect(screen.getAllByRole("link")).toHaveLength(7);
   });
 
   it("um clique na sugestão troca a busca", () => {
