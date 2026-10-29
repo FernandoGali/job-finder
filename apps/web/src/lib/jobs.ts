@@ -58,6 +58,8 @@ export type DemandItem = {
 export type RoleDemand = {
   role: string;
   jobs: number;
+  // Nível das vagas contadas ("júnior"); null quando entram todos.
+  level: string | null;
   items: DemandItem[];
 };
 

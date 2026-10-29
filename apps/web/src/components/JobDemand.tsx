@@ -15,7 +15,7 @@ export function JobDemand({ result }: { result: JobDemandResult }) {
         <>
           <p style={{ margin: 0, fontSize: "0.9em", color: "#4b5563" }}>
             Nas vagas coletadas de cada cargo, as ferramentas, métodos e idiomas mais pedidos: os que, juntos,
-            somam 80% dos pedidos.
+            somam 80% dos pedidos. Contam as vagas do seu nível e as que não informam o nível.
           </p>
           {result.roles.map((role) => (
             <div
@@ -26,6 +26,7 @@ export function JobDemand({ result }: { result: JobDemandResult }) {
                 {role.role}{" "}
                 <span style={{ fontWeight: "normal", fontSize: "0.85em", color: "#4b5563" }}>
                   · {role.jobs} {role.jobs === 1 ? "vaga" : "vagas"}
+                  {role.level && ` de nível ${role.level}`}
                 </span>
               </h3>
               {role.items.length === 0 ? (

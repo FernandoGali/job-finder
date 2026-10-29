@@ -162,7 +162,9 @@ def test_demanda_conta_o_que_as_vagas_de_cada_cargo_pedem(client, store, reader,
         # A palavra-chave do cargo sugerido também conta como citada no currículo.
         {"name": "Tableau", "jobs": 3, "share": 50, "in_resume": True},
     ]
-    assert bi == {"role": "Analista de BI", "jobs": 0, "items": []}
+    # O perfil é júnior: a conta diz de que nível são as vagas.
+    assert dados["level"] == "júnior"
+    assert bi == {"role": "Analista de BI", "jobs": 0, "level": "júnior", "items": []}
     # Regra 4: só contagens, nenhum trecho da vaga.
     assert "interno" not in response.text
 

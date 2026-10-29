@@ -5,18 +5,40 @@ inteiro com ele (a mesma comparação do ranking). Em cada vaga, procura-se cada
 lista fechada de ferramentas, linguagens, métodos e idiomas: palavras soltas da descrição não
 servem, porque as mais comuns são benefícios ("vale refeição", "auxílio creche").
 
+Só contam as vagas do nível da pessoa e as que não dizem o nível no título: para um perfil
+júnior, o que uma vaga sênior pede (ex.: Machine Learning) distorce a conta.
+
 Depois, um Pareto: do item mais citado para o menos, entram os itens até somarem 80% de todas
 as citações, no máximo 10. Cada item diz em quantas vagas aparece e se o currículo já o cita.
 """
 
 from pydantic import BaseModel
 
-from jobfinder_api.job_matching import JobForMatching, _JobText, _skill_key, normalize, title_match
+from jobfinder_api.job_matching import (
+    LEVEL_LABELS,
+    JobForMatching,
+    JobLevel,
+    _JobText,
+    _skill_key,
+    job_level,
+    normalize,
+    title_match,
+)
 
 PARETO_SHARE = 0.8
 MAX_ITEMS = 10
 # Com menos vagas que isso, a porcentagem engana (1 vaga em 2 vira "50%").
 MIN_JOBS = 5
+
+# Senioridade do perfil -> nível de vaga equivalente. Especialista é o sênior dos títulos.
+SAME_LEVEL: dict[str, JobLevel] = {
+    "estagio": "estagio",
+    "junior": "junior",
+    "pleno": "pleno",
+    "senior": "senior",
+    "especialista": "senior",
+    "gestao": "gestao",
+}
 
 # Nome mostrado -> formas como aparece nas vagas. Comparação por palavras inteiras, sem acento
 # e sem maiúsculas. Ficam de fora nomes ambíguos demais para contar ("R", "Go", ".NET").
@@ -105,6 +127,7 @@ class DemandItem(BaseModel):
 class RoleDemand(BaseModel):
     role: str
     jobs: int
+    level: str | None  # nível das vagas contadas ("júnior"); None quando entram todos
     items: list[DemandItem]
 
 
@@ -126,14 +149,19 @@ def pareto(counts: dict[str, int]) -> list[str]:
     return chosen
 
 
-def role_demand(role: str, jobs: list[JobForMatching], resume_terms: list[str]) -> RoleDemand:
+def role_demand(
+    role: str, jobs: list[JobForMatching], resume_terms: list[str], seniority: str | None = None
+) -> RoleDemand:
+    level = SAME_LEVEL.get(seniority or "")
     texts = [
         _JobText(normalize(f"{job.title} {job.description}"))
         for job in jobs
         if title_match([role], job.title)[0] == 1
+        and (level is None or job_level(job.title) in (level, None))
     ]
+    label = LEVEL_LABELS[level] if level else None
     if len(texts) < MIN_JOBS:
-        return RoleDemand(role=role, jobs=len(texts), items=[])
+        return RoleDemand(role=role, jobs=len(texts), level=label, items=[])
 
     counts = {name: sum(1 for text in texts if _cites(text, name)) for name in VOCABULARY}
     # Cada termo do currículo separado, para não juntar o fim de um com o começo de outro.
@@ -141,6 +169,7 @@ def role_demand(role: str, jobs: list[JobForMatching], resume_terms: list[str]) 
     return RoleDemand(
         role=role,
         jobs=len(texts),
+        level=label,
         items=[
             DemandItem(
                 name=name,
@@ -154,6 +183,9 @@ def role_demand(role: str, jobs: list[JobForMatching], resume_terms: list[str]) 
 
 
 def market_demand(
-    roles: list[str], jobs: list[JobForMatching], resume_terms: list[str]
+    roles: list[str],
+    jobs: list[JobForMatching],
+    resume_terms: list[str],
+    seniority: str | None = None,
 ) -> list[RoleDemand]:
-    return [role_demand(role, jobs, resume_terms) for role in roles]
+    return [role_demand(role, jobs, resume_terms, seniority) for role in roles]

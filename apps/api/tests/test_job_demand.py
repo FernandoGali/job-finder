@@ -87,3 +87,28 @@ def test_pareto_empata_pelo_nome_e_tem_limite():
 
 def test_pareto_sem_citacoes():
     assert pareto({"SQL": 0}) == []
+
+
+def test_so_conta_vagas_do_mesmo_nivel_e_as_sem_nivel():
+    jobs = [
+        *(job(10 + i, "Analista de Dados Júnior", "SQL.") for i in range(3)),
+        job(20, "Data Analyst", "SQL e Excel."),  # sem nível no título: conta
+        job(21, "Analista de Dados", "SQL."),  # sem nível no título: conta
+        *(job(30 + i, "Analista de Dados Sênior", "SQL e Machine Learning.") for i in range(4)),
+        job(40, "Estágio em Análise de Dados", "SQL."),  # estágio não é júnior
+    ]
+
+    [demand] = market_demand(["Analista de Dados"], jobs, [], "junior")
+
+    assert (demand.jobs, demand.level) == (5, "júnior")
+    assert "Machine Learning" not in [item.name for item in demand.items]
+
+
+def test_especialista_conta_vagas_senior_e_sem_senioridade_conta_todas():
+    jobs = [job(i, "Analista de Dados Sênior", "SQL.") for i in range(5)]
+
+    [especialista] = market_demand(["Analista de Dados"], jobs, [], "especialista")
+    [sem_nivel] = market_demand(["Analista de Dados"], DATA_JOBS, [], None)
+
+    assert (especialista.jobs, especialista.level) == (5, "sênior")
+    assert (sem_nivel.jobs, sem_nivel.level) == (5, None)

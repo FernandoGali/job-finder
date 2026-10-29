@@ -52,7 +52,7 @@ describe("fetchJobMatches", () => {
 });
 
 describe("fetchJobDemand", () => {
-  const demand = { role: "Analista de Dados", jobs: 12, items: [{ name: "SQL", jobs: 12, share: 100, in_resume: true }] };
+  const demand = { role: "Analista de Dados", jobs: 12, level: "júnior", items: [{ name: "SQL", jobs: 12, share: 100, in_resume: true }] };
 
   it("busca a demanda com o token", async () => {
     const fetcher = vi.fn().mockResolvedValue(json([demand]));

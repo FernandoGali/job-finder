@@ -65,8 +65,8 @@ async def job_demand(
     store: ResumeStore = Depends(get_resume_store),
     reader: JobReader = Depends(get_supabase_admin),
 ) -> list[RoleDemand]:
-    """Para cada cargo sugerido, os itens mais pedidos nas vagas coletadas e se o currículo os
-    cita. Só contagens: nenhum trecho de vaga sai da API (regra 4)."""
+    """Para cada cargo sugerido, os itens mais pedidos nas vagas do nível da pessoa e se o
+    currículo os cita. Só contagens: nenhum trecho de vaga sai da API (regra 4)."""
     profile, jobs = await _profile_and_jobs(store, reader)
     roles = profile.get("suggested_roles") or []
     titles = [role["title"] for role in roles] or profile.get("search_terms") or []
@@ -75,4 +75,4 @@ async def job_demand(
         *(profile.get("skills") or []),
         *(keyword for role in roles for keyword in role.get("keywords", [])),
     ]
-    return market_demand(titles, jobs, resume_terms)
+    return market_demand(titles, jobs, resume_terms, profile.get("seniority"))
