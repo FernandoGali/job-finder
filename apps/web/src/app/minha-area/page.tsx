@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 
+import { JobDemand } from "@/components/JobDemand";
 import { JobMatches } from "@/components/JobMatches";
 import { JobSearchLinks } from "@/components/JobSearchLinks";
 import { ResumeList } from "@/components/ResumeList";
 import { SignOutButton } from "@/components/SignOutButton";
 import { LOGIN_PATH } from "@/lib/auth/routes";
-import { fetchJobMatches, type JobMatchesResult } from "@/lib/jobs";
+import { fetchJobDemand, fetchJobMatches, type JobDemandResult, type JobMatchesResult } from "@/lib/jobs";
 import { fetchResumes, type ResumesResult } from "@/lib/resumes";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,9 +24,9 @@ export default async function MinhaAreaPage() {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   const expired = { state: "error", message: "Sua sessão expirou. Saia e entre de novo." } as const;
-  const [resumes, jobs]: [ResumesResult, JobMatchesResult] = token
-    ? await Promise.all([fetchResumes(token), fetchJobMatches(token)])
-    : [expired, expired];
+  const [resumes, jobs, demand]: [ResumesResult, JobMatchesResult, JobDemandResult] = token
+    ? await Promise.all([fetchResumes(token), fetchJobMatches(token), fetchJobDemand(token)])
+    : [expired, expired, expired];
   const profile = resumes.state === "ok" ? resumes.resumes[0]?.profile : null;
 
   return (
@@ -46,6 +47,7 @@ export default async function MinhaAreaPage() {
         </p>
       </header>
       <ResumeList result={resumes} />
+      <JobDemand result={demand} />
       <JobMatches result={jobs} />
       {profile && <JobSearchLinks suggestions={profile.search_terms} seniority={profile.seniority} />}
       <ResumeUploadSection />

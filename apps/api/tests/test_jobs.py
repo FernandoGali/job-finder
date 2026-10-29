@@ -128,3 +128,64 @@ async def test_admin_lista_as_vagas_em_paginas():
         json.dumps(requests[0].url.params["select"])
         == '"id,title,company,location,url,description"'
     )
+
+
+DATA_JOBS = [
+    {
+        "id": str(i),
+        "title": "Analista de Dados",
+        "company": "Stone",
+        "location": "São Paulo",
+        "url": f"https://job-boards.greenhouse.io/stone/jobs/{i}",
+        "description": "Trecho interno: SQL e Tableau." if i % 2 else "Trecho interno: SQL.",
+    }
+    for i in range(6)
+]
+
+
+def test_demanda_conta_o_que_as_vagas_de_cada_cargo_pedem(client, store, reader, monkeypatch):
+    monkeypatch.setattr(reader, "list_jobs", _returning(DATA_JOBS))
+    roles = [
+        {"title": "Analista de Dados", "evidence": None, "keywords": ["Tableau"]},
+        {"title": "Analista de BI", "evidence": None, "keywords": []},
+    ]
+    add_resume(store, {**PROFILE, "skills": ["SQL"], "suggested_roles": roles})
+
+    response = client.get("/vagas/demanda")
+
+    assert response.status_code == 200
+    [dados, bi] = response.json()
+    assert dados["role"] == "Analista de Dados"
+    assert dados["jobs"] == 6
+    assert dados["items"] == [
+        {"name": "SQL", "jobs": 6, "share": 100, "in_resume": True},
+        # A palavra-chave do cargo sugerido também conta como citada no currículo.
+        {"name": "Tableau", "jobs": 3, "share": 50, "in_resume": True},
+    ]
+    assert bi == {"role": "Analista de BI", "jobs": 0, "items": []}
+    # Regra 4: só contagens, nenhum trecho da vaga.
+    assert "interno" not in response.text
+
+
+def test_demanda_de_analise_antiga_usa_os_termos_de_busca(client, store, reader, monkeypatch):
+    monkeypatch.setattr(reader, "list_jobs", _returning(DATA_JOBS))
+    add_resume(store, PROFILE)  # sem suggested_roles
+
+    [dados] = client.get("/vagas/demanda").json()
+
+    assert dados["role"] == "Analista de Dados"
+    # Python é competência do perfil, mas nenhuma dessas vagas pede.
+    assert [item["name"] for item in dados["items"]] == ["SQL", "Tableau"]
+
+
+def test_demanda_sem_curriculo_analisado_pede_a_analise(client, store, reader):
+    add_resume(store, None)
+
+    assert client.get("/vagas/demanda").status_code == 409
+
+
+def _returning(jobs):
+    async def list_jobs():
+        return jobs
+
+    return list_jobs

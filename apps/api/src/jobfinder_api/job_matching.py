@@ -58,6 +58,7 @@ SYNONYMS: dict[str, set[str]] = {
     "produto": {"product"},
     "processos": {"process", "processes"},
     "melhoria": {"improvement"},
+    "continua": {"continuous"},
 }
 
 STOPWORDS = {"de", "da", "do", "das", "dos", "em", "e", "a", "o", "para", "of", "and", "the"}

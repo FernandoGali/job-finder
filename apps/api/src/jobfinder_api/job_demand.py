@@ -1,0 +1,159 @@
+"""O que as vagas pedem para cada cargo sugerido: os itens mais citados nas vagas coletadas.
+
+Sem IA: é contagem em vagas reais. Para cada cargo, entram as vagas cujo título combina por
+inteiro com ele (a mesma comparação do ranking). Em cada vaga, procura-se cada item de uma
+lista fechada de ferramentas, linguagens, métodos e idiomas: palavras soltas da descrição não
+servem, porque as mais comuns são benefícios ("vale refeição", "auxílio creche").
+
+Depois, um Pareto: do item mais citado para o menos, entram os itens até somarem 80% de todas
+as citações, no máximo 10. Cada item diz em quantas vagas aparece e se o currículo já o cita.
+"""
+
+from pydantic import BaseModel
+
+from jobfinder_api.job_matching import JobForMatching, _JobText, _skill_key, normalize, title_match
+
+PARETO_SHARE = 0.8
+MAX_ITEMS = 10
+# Com menos vagas que isso, a porcentagem engana (1 vaga em 2 vira "50%").
+MIN_JOBS = 5
+
+# Nome mostrado -> formas como aparece nas vagas. Comparação por palavras inteiras, sem acento
+# e sem maiúsculas. Ficam de fora nomes ambíguos demais para contar ("R", "Go", ".NET").
+VOCABULARY: dict[str, tuple[str, ...]] = {
+    # Dados e BI
+    "SQL": ("sql",),
+    "Python": ("python", "pyspark"),
+    "Excel": ("excel",),
+    "Power BI": ("power bi", "powerbi"),
+    "DAX": ("dax",),
+    "Power Query": ("power query",),
+    "Tableau": ("tableau",),
+    "Looker": ("looker",),
+    "Qlik": ("qlik", "qlikview", "qlik sense"),
+    "Metabase": ("metabase",),
+    "Google Sheets": ("google sheets", "planilhas google"),
+    "VBA": ("vba",),
+    "Estatística": ("estatistica", "statistics", "statistical"),
+    "Machine Learning": ("machine learning", "aprendizado de maquina"),
+    "Inteligência Artificial": (
+        "inteligencia artificial",
+        "artificial intelligence",
+        "genai",
+        "llm",
+        "llms",
+    ),
+    "ETL": ("etl", "elt"),
+    "Modelagem de dados": ("modelagem de dados", "data modeling", "data modelling"),
+    "Data Warehouse": ("data warehouse", "data lake", "lakehouse"),
+    "Spark": ("spark", "pyspark"),
+    "Pandas": ("pandas",),
+    "Databricks": ("databricks",),
+    "BigQuery": ("bigquery",),
+    "Snowflake": ("snowflake",),
+    "dbt": ("dbt",),
+    "Airflow": ("airflow",),
+    "SAS": ("sas",),
+    "Google Analytics": ("google analytics",),
+    # Nuvem e desenvolvimento
+    "AWS": ("aws", "amazon web services"),
+    "Azure": ("azure",),
+    "GCP": ("gcp", "google cloud"),
+    "Git": ("git", "github", "gitlab"),
+    "APIs REST": ("api rest", "apis rest", "rest api", "rest apis", "restful"),
+    "Java": ("java",),
+    "JavaScript": ("javascript",),
+    "TypeScript": ("typescript",),
+    "React": ("react", "reactjs"),
+    "Node.js": ("node js", "nodejs"),
+    "C#": ("c#",),
+    "Kotlin": ("kotlin",),
+    "Swift": ("swift",),
+    "Docker": ("docker",),
+    "Kubernetes": ("kubernetes", "k8s"),
+    "Linux": ("linux",),
+    # Processos e gestão
+    "Indicadores (KPIs)": ("kpi", "kpis", "indicadores de desempenho"),
+    "OKR": ("okr", "okrs"),
+    "Metodologias ágeis": ("agil", "ageis", "agile", "scrum", "kanban"),
+    "Jira": ("jira",),
+    "Gestão de projetos": ("gestao de projetos", "project management"),
+    "Mapeamento de processos": ("mapeamento de processos", "process mapping", "bpmn"),
+    "Melhoria contínua": ("melhoria continua", "continuous improvement", "kaizen"),
+    "Lean": ("lean",),
+    "Six Sigma": ("six sigma", "seis sigma"),
+    "PDCA": ("pdca",),
+    "RPA": ("rpa",),
+    "SAP": ("sap",),
+    "ERP": ("erp",),
+    "Salesforce": ("salesforce",),
+    "CRM": ("crm",),
+    "Figma": ("figma",),
+    # Idiomas
+    "Inglês": ("ingles", "english"),
+    "Espanhol": ("espanhol", "spanish"),
+}
+
+
+class DemandItem(BaseModel):
+    name: str
+    jobs: int
+    share: int  # porcentagem das vagas do cargo que citam o item
+    in_resume: bool
+
+
+class RoleDemand(BaseModel):
+    role: str
+    jobs: int
+    items: list[DemandItem]
+
+
+def _cites(text: _JobText, name: str) -> bool:
+    return any(text.has(_skill_key(alias)) for alias in VOCABULARY[name])
+
+
+def pareto(counts: dict[str, int]) -> list[str]:
+    """Os itens mais citados até somarem 80% das citações (o que cruza a linha entra)."""
+    ranked = sorted((name for name in counts if counts[name] > 0), key=lambda n: (-counts[n], n))
+    total = sum(counts[name] for name in ranked)
+    chosen: list[str] = []
+    covered = 0
+    for name in ranked[:MAX_ITEMS]:
+        if covered >= PARETO_SHARE * total:
+            break
+        chosen.append(name)
+        covered += counts[name]
+    return chosen
+
+
+def role_demand(role: str, jobs: list[JobForMatching], resume_terms: list[str]) -> RoleDemand:
+    texts = [
+        _JobText(normalize(f"{job.title} {job.description}"))
+        for job in jobs
+        if title_match([role], job.title)[0] == 1
+    ]
+    if len(texts) < MIN_JOBS:
+        return RoleDemand(role=role, jobs=len(texts), items=[])
+
+    counts = {name: sum(1 for text in texts if _cites(text, name)) for name in VOCABULARY}
+    # Cada termo do currículo separado, para não juntar o fim de um com o começo de outro.
+    resume = [_JobText(normalize(term)) for term in resume_terms]
+    return RoleDemand(
+        role=role,
+        jobs=len(texts),
+        items=[
+            DemandItem(
+                name=name,
+                jobs=counts[name],
+                share=round(100 * counts[name] / len(texts)),
+                in_resume=any(_cites(term, name) for term in resume),
+            )
+            for name in pareto(counts)
+        ],
+    )
+
+
+def market_demand(
+    roles: list[str], jobs: list[JobForMatching], resume_terms: list[str]
+) -> list[RoleDemand]:
+    return [role_demand(role, jobs, resume_terms) for role in roles]

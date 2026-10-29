@@ -47,3 +47,44 @@ export async function fetchJobMatches(
     return { state: "error", message: API_OFFLINE };
   }
 }
+
+export type DemandItem = {
+  name: string;
+  jobs: number;
+  share: number;
+  in_resume: boolean;
+};
+
+export type RoleDemand = {
+  role: string;
+  jobs: number;
+  items: DemandItem[];
+};
+
+export type JobDemandResult =
+  | { state: "ok"; roles: RoleDemand[] }
+  | { state: "no-profile" }
+  | { state: "error"; message: string };
+
+/** O que as vagas coletadas pedem para cada cargo sugerido. Nunca lança erro. */
+export async function fetchJobDemand(
+  accessToken: string,
+  fetcher: typeof fetch = fetch,
+  baseUrl: string = apiBaseUrl(),
+): Promise<JobDemandResult> {
+  try {
+    const response = await fetcher(`${baseUrl}/vagas/demanda`, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (response.ok) {
+      return { state: "ok", roles: (await response.json()) as RoleDemand[] };
+    }
+    if (response.status === 409) {
+      return { state: "no-profile" };
+    }
+    return { state: "error", message: await apiErrorMessage(response) };
+  } catch {
+    return { state: "error", message: API_OFFLINE };
+  }
+}
