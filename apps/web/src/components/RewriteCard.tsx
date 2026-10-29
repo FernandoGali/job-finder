@@ -1,4 +1,4 @@
-import type { ResumeRewrite } from "@/lib/resumes";
+import { REWRITE_DOCX_NAME, type ResumeRewrite } from "@/lib/resumes";
 
 import { RewriteQuestions } from "./RewriteQuestions";
 
@@ -16,7 +16,16 @@ export function RewriteCard({ resumeId, rewrite }: { resumeId: string; rewrite: 
         Conferimos cada empresa, cargo, data e número com o seu currículo original: o que não estava lá ficou de
         fora.
       </p>
+      <p style={{ margin: "4px 0" }}>
+        <a href={`/minha-area/reescrita/${resumeId}`} download={REWRITE_DOCX_NAME}>
+          Baixar currículo em DOCX
+        </a>
+      </p>
+      {rewrite.name && <p style={{ margin: "4px 0 0", fontWeight: 700, fontSize: "1.1em" }}>{rewrite.name}</p>}
       {rewrite.headline && <p style={{ margin: "4px 0 0", fontWeight: 600 }}>{rewrite.headline}</p>}
+      {rewrite.contacts && rewrite.contacts.length > 0 && (
+        <p style={{ margin: 0, fontSize: "0.9em", color: "#4b5563" }}>{rewrite.contacts.join(" | ")}</p>
+      )}
 
       {rewrite.summary && (
         <>

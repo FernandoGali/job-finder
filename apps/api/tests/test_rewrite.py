@@ -8,7 +8,7 @@ from jobfinder_api.admin import get_supabase_admin
 from jobfinder_api.config import Settings, get_settings
 from jobfinder_api.resume_analysis import MODEL, AnalysisError, AnalysisUnavailableError
 from jobfinder_api.resume_rewrite import Answer, ResumeRewrite, RewriteResult
-from jobfinder_api.resumes import PDF
+from jobfinder_api.resumes import DOCX, PDF
 from jobfinder_api.rewrite import get_rewriter
 from jobfinder_api.supabase_user import SupabaseAdminClient, SupabaseError
 from tests.conftest import USER_ID, pdf_with_text
@@ -260,3 +260,31 @@ def test_respostas_fora_do_limite_sao_recusadas(client, store, rewriter, backend
 
     assert response.status_code == 422
     assert rewriter.calls == []
+
+
+def test_baixa_a_reescrita_em_docx(client, store):
+    resume_id = add_resume(store)
+    store.resumes[-1]["rewrite"] = {"content": REWRITE.model_dump(), "created_at": "2026-10-29"}
+
+    response = client.get(f"/curriculos/{resume_id}/reescrita.docx")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == DOCX
+    assert response.headers["content-disposition"] == 'attachment; filename="curriculo-ats.docx"'
+    assert response.content[:2] == b"PK"  # DOCX é um zip
+
+
+def test_sem_reescrita_nao_ha_o_que_baixar(client, store):
+    resume_id = add_resume(store)
+
+    response = client.get(f"/curriculos/{resume_id}/reescrita.docx")
+
+    assert response.status_code == 404
+    assert "Reescreva o currículo" in response.json()["detail"]
+
+
+def test_falha_ao_buscar_a_reescrita(client, store):
+    resume_id = add_resume(store)
+    store.fail_on.add("list")
+
+    assert client.get(f"/curriculos/{resume_id}/reescrita.docx").status_code == 502

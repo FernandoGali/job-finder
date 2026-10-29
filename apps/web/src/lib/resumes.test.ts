@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { analyzeResume, fetchResumes, fileProblem, MAX_BYTES, rewriteResume, uploadResume } from "./resumes";
+import {
+  analyzeResume,
+  fetchResumes,
+  fetchRewriteDocx,
+  fileProblem,
+  MAX_BYTES,
+  rewriteResume,
+  uploadResume,
+} from "./resumes";
 
 const resume = {
   id: "r-1",
@@ -108,6 +116,36 @@ describe("fetchResumes", () => {
     const fetcher = vi.fn().mockRejectedValue(new Error("connection refused"));
 
     expect((await fetchResumes("t", fetcher, "http://api.test")).state).toBe("error");
+  });
+});
+
+describe("fetchRewriteDocx", () => {
+  it("busca o arquivo com o token", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(new Uint8Array([80, 75]), { status: 200 }));
+
+    const result = await fetchRewriteDocx("token-abc", "r-1", fetcher, "http://api.test");
+
+    expect(result.state).toBe("ok");
+    expect(result.state === "ok" && new Uint8Array(result.file)).toEqual(new Uint8Array([80, 75]));
+    expect(fetcher).toHaveBeenCalledWith("http://api.test/curriculos/r-1/reescrita.docx", {
+      cache: "no-store",
+      headers: { Authorization: "Bearer token-abc" },
+    });
+  });
+
+  it("devolve a mensagem da API quando não há reescrita", async () => {
+    const fetcher = vi.fn().mockResolvedValue(json({ detail: "Reescreva o currículo antes de baixar." }, 404));
+
+    expect(await fetchRewriteDocx("t", "r-1", fetcher, "http://api.test")).toEqual({
+      state: "error",
+      message: "Reescreva o currículo antes de baixar.",
+    });
+  });
+
+  it("avisa sem lançar erro quando a API está fora do ar", async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error("connection refused"));
+
+    expect((await fetchRewriteDocx("t", "r-1", fetcher, "http://api.test")).state).toBe("error");
   });
 });
 

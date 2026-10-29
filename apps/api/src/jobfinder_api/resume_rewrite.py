@@ -29,6 +29,7 @@ MAX_SKILLS = 20
 MAX_CERTIFICATIONS = 15
 MAX_QUESTIONS = 5
 MAX_FIXES = 6
+MAX_CONTACTS = 5
 
 SYSTEM_PROMPT = """\
 Você é recrutador sênior no Brasil. Reescreva o currículo no modelo ATS mestre: a versão base, \
@@ -62,6 +63,10 @@ período sem data, intervalo sem experiência) vira pergunta em questions.
 Escreva em português do Brasil, frases diretas, sem emojis.
 
 Campos:
+- name: o nome da pessoa, copiado do currículo (null se não houver).
+- contacts: e-mail, telefone, cidade e links profissionais (LinkedIn, portfólio, GitHub), cada \
+um copiado exatamente como está no currículo, no máximo 5. Não inclua documentos (CPF, RG) nem \
+dados pessoais como idade, estado civil ou endereço completo.
 - summary: resumo profissional de 3 a 5 frases voltado ao cargo-alvo.
 - experiences: as experiências profissionais, da mais recente para a mais antiga. Em cada uma, \
 company, role e period copiados do currículo (period null se não houver) e bullets: de 2 a 5 \
@@ -83,6 +88,8 @@ _STRINGS = {"type": "array", "items": {"type": "string"}}
 OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
+        "name": _NULLABLE_STRING,
+        "contacts": _STRINGS,
         "summary": {"type": "string"},
         "experiences": {
             "type": "array",
@@ -117,6 +124,8 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "questions": _STRINGS,
     },
     "required": [
+        "name",
+        "contacts",
         "summary",
         "experiences",
         "education",
@@ -143,6 +152,9 @@ class Education(BaseModel):
 
 
 class ResumeRewrite(BaseModel):
+    # Nome e contatos: vazios nas reescritas feitas antes de existirem.
+    name: str | None = None
+    contacts: list[str] = []
     headline: str | None
     summary: str
     experiences: list[Experience]
@@ -168,6 +180,8 @@ class _RawEducation(BaseModel):
 
 
 class _RawRewrite(BaseModel):
+    name: str | None
+    contacts: list[str]
     summary: str
     experiences: list[_RawExperience]
     education: list[_RawEducation]
@@ -236,6 +250,8 @@ def ground_in_resume(
     ]
     summary = " ".join(s for s in _sentences(raw.summary) if _numbers_in_resume(s, haystack))
     return ResumeRewrite(
+        name=_in_resume(raw.name, haystack),
+        contacts=_found_in(raw.contacts, haystack, MAX_CONTACTS),
         headline=headline,
         summary=summary,
         experiences=experiences,

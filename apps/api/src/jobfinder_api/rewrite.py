@@ -1,4 +1,4 @@
-"""Rota que reescreve o currículo para ATS e guarda o resultado."""
+"""Rotas que reescrevem o currículo para ATS, guardam o resultado e entregam o DOCX."""
 
 import logging
 import uuid
@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated, Any, Protocol
 
 import anthropic
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from jobfinder_api.admin import get_supabase_admin
@@ -15,9 +15,10 @@ from jobfinder_api.config import Settings, get_settings
 from jobfinder_api.job_demand import market_demand, resume_terms
 from jobfinder_api.job_matching import JobForMatching
 from jobfinder_api.resume_analysis import AnalysisError, AnalysisUnavailableError
+from jobfinder_api.resume_docx import build_docx
 from jobfinder_api.resume_rewrite import Answer, ResumeRewrite, ResumeRewriter, RewriteResult
 from jobfinder_api.resume_text import UnreadableResumeError, extract_text
-from jobfinder_api.resumes import ResumeStore, get_resume_store
+from jobfinder_api.resumes import DOCX, ResumeStore, get_resume_store
 from jobfinder_api.supabase_user import SupabaseError
 
 logger = logging.getLogger(__name__)
@@ -140,3 +141,30 @@ async def rewrite_resume(
             status.HTTP_502_BAD_GATEWAY, "Não foi possível salvar a reescrita. Tente de novo."
         ) from None
     return result.rewrite
+
+
+@router.get("/curriculos/{resume_id}/reescrita.docx")
+async def download_rewrite(
+    resume_id: uuid.UUID,
+    store: ResumeStore = Depends(get_resume_store),
+) -> Response:
+    """A última reescrita, em DOCX. Lida com o token da pessoa: o RLS garante que é dela."""
+    try:
+        resumes = await store.list_resumes()
+    except SupabaseError:
+        logger.exception("Falha ao buscar a reescrita")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Não foi possível gerar o arquivo agora. Tente de novo."
+        ) from None
+    rewrite = next(
+        (r.get("rewrite") for r in resumes if r["id"] == str(resume_id) and r.get("rewrite")),
+        None,
+    )
+    if rewrite is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reescreva o currículo antes de baixar.")
+    content = build_docx(ResumeRewrite.model_validate(rewrite["content"]))
+    return Response(
+        content,
+        media_type=DOCX,
+        headers={"Content-Disposition": 'attachment; filename="curriculo-ats.docx"'},
+    )

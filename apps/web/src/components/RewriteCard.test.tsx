@@ -8,6 +8,8 @@ import { RewriteCard } from "./RewriteCard";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const rewrite: ResumeRewrite = {
+  name: "Maria Silva",
+  contacts: ["maria@exemplo.com", "São Paulo, SP"],
   headline: "Analista de Dados",
   summary: "Analista com foco em dados.",
   experiences: [
@@ -31,7 +33,12 @@ describe("RewriteCard", () => {
     render(<RewriteCard resumeId="r-1" rewrite={rewrite} />);
 
     const card = screen.getByRole("region", { name: "Currículo reescrito para ATS" });
+    expect(card).toHaveTextContent("Maria Silva");
+    expect(card).toHaveTextContent("maria@exemplo.com | São Paulo, SP");
     expect(card).toHaveTextContent("Analista de Dados");
+    const download = screen.getByRole("link", { name: "Baixar currículo em DOCX" });
+    expect(download).toHaveAttribute("href", "/minha-area/reescrita/r-1");
+    expect(download).toHaveAttribute("download", "curriculo-ats.docx");
     for (const title of ["Resumo", "Experiência", "Formação", "Competências", "Cursos e certificações"]) {
       expect(within(card).getByRole("heading", { name: title })).toBeInTheDocument();
     }

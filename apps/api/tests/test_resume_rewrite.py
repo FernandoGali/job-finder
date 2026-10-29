@@ -12,6 +12,8 @@ from jobfinder_api.resume_rewrite import OUTPUT_SCHEMA, Answer, ResumeRewriter
 pytestmark = pytest.mark.anyio
 
 RESUME = """Maria Silva
+maria@exemplo.com | (11) 91234-5678 | São Paulo, SP | linkedin.com/in/maria
+CPF 123.456.789-00
 Objetivo: Analista de Dados
 Experiência
 Analista de BI - Empresa X - 2021 a 2025
@@ -25,6 +27,8 @@ Cursos: Linux Unhatched
 
 def answer(**overrides: Any) -> dict[str, Any]:
     return {
+        "name": "Maria Silva",
+        "contacts": ["maria@exemplo.com", "(11) 91234-5678", "linkedin.com/in/maria"],
         "summary": "Analista com foco em dados. Automatizou 12 relatórios semanais.",
         "experiences": [
             {
@@ -79,6 +83,8 @@ async def test_reescreve_e_mantem_o_que_confere_com_o_curriculo():
 
     assert result.model == MODEL
     data = result.rewrite.model_dump()
+    assert data["name"] == "Maria Silva"
+    assert data["contacts"] == ["maria@exemplo.com", "(11) 91234-5678", "linkedin.com/in/maria"]
     assert data["headline"] == "Analista de Dados"
     assert data["experiences"][0]["company"] == "Empresa X"
     assert len(data["experiences"][0]["bullets"]) == 2
@@ -271,3 +277,23 @@ async def test_sem_respostas_o_pedido_nao_tem_o_bloco():
     await rewrite(fake)
 
     assert "<respostas>" not in fake.requests[0]["messages"][0]["content"]
+
+
+async def test_nome_e_contatos_tambem_sao_conferidos():
+    raw = answer(
+        name="Maria Souza",  # sobrenome trocado
+        contacts=["maria@exemplo.com", "maria@gmail.com", "São Paulo, SP"],
+    )
+
+    result = (await rewrite(FakeClaude(json.dumps(raw)))).rewrite
+
+    assert result.name is None
+    assert result.contacts == ["maria@exemplo.com", "São Paulo, SP"]
+
+
+async def test_pedido_proibe_documentos_e_dados_pessoais_nos_contatos():
+    fake = FakeClaude(json.dumps(answer()))
+
+    await rewrite(fake)
+
+    assert "Não inclua documentos (CPF, RG)" in fake.requests[0]["system"]

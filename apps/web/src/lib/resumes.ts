@@ -42,6 +42,9 @@ export type Profile = {
 
 /** Currículo reescrito pela IA. A API conferiu empresas, cargos, datas e números no original. */
 export type ResumeRewrite = {
+  // Nome e contatos: ausentes nas reescritas feitas antes de existirem.
+  name?: string | null;
+  contacts?: string[];
   headline: string | null;
   summary: string;
   experiences: { company: string; role: string | null; period: string | null; bullets: string[] }[];
@@ -171,6 +174,32 @@ export async function rewriteResume(
     });
     if (response.ok) {
       return { state: "ok", rewrite: (await response.json()) as ResumeRewrite };
+    }
+    return { state: "error", message: await apiErrorMessage(response) };
+  } catch {
+    return { state: "error", message: API_OFFLINE };
+  }
+}
+
+export const REWRITE_DOCX_NAME = "curriculo-ats.docx";
+export const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export type RewriteDocxResult = { state: "ok"; file: ArrayBuffer } | { state: "error"; message: string };
+
+/** Busca na API o DOCX da última reescrita. Roda no servidor do site, com o token da sessão. */
+export async function fetchRewriteDocx(
+  accessToken: string,
+  resumeId: string,
+  fetcher: typeof fetch = fetch,
+  baseUrl: string = apiBaseUrl(),
+): Promise<RewriteDocxResult> {
+  try {
+    const response = await fetcher(`${baseUrl}/curriculos/${resumeId}/reescrita.docx`, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (response.ok) {
+      return { state: "ok", file: await response.arrayBuffer() };
     }
     return { state: "error", message: await apiErrorMessage(response) };
   } catch {
