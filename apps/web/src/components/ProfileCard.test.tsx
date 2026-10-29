@@ -23,6 +23,7 @@ describe("ProfileCard", () => {
     expect(card).toHaveTextContent("SenioridadeSênior");
     const skills = within(screen.getByRole("list", { name: "Competências" })).getAllByRole("listitem");
     expect(skills.map((item) => item.textContent)).toEqual(["Python", "SQL"]);
+    expect(screen.getByRole("heading", { name: "Competências no currículo" })).toBeInTheDocument();
     expect(card).toHaveTextContent("Seis anos com dados.");
     const courses = within(screen.getByRole("list", { name: "Cursos e certificações" })).getAllByRole("listitem");
     expect(courses.map((item) => item.textContent)).toEqual(["Fundamentos do Python 1"]);

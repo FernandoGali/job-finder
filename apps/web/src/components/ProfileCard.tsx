@@ -47,23 +47,26 @@ export function ProfileCard({ profile }: { profile: Profile }) {
           </ol>
         </div>
       )}
-      {profile.skills.length > 0 ? (
-        <ul
-          aria-label="Competências"
-          style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexWrap: "wrap", gap: 6 }}
-        >
-          {profile.skills.map((skill) => (
-            <li
-              key={skill}
-              style={{ background: "#eef2ff", borderRadius: 999, padding: "2px 10px", fontSize: "0.85em" }}
-            >
-              {skill}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p style={{ margin: 0 }}>Nenhuma competência identificada.</p>
-      )}
+      <div>
+        <h3 style={{ fontSize: "0.9em", margin: "4px 0" }}>Competências no currículo</h3>
+        {profile.skills.length > 0 ? (
+          <ul
+            aria-label="Competências"
+            style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexWrap: "wrap", gap: 6 }}
+          >
+            {profile.skills.map((skill) => (
+              <li
+                key={skill}
+                style={{ background: "#eef2ff", borderRadius: 999, padding: "2px 10px", fontSize: "0.85em" }}
+              >
+                {skill}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ margin: 0 }}>Nenhuma competência identificada.</p>
+        )}
+      </div>
       {profile.certifications.length > 0 && (
         <div>
           <h3 style={{ fontSize: "0.9em", margin: "4px 0" }}>Cursos e certificações</h3>
