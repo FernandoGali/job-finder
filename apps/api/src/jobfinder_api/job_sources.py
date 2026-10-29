@@ -1,22 +1,30 @@
-"""Fontes de vagas. Hoje: quadros públicos da Greenhouse de empresas escolhidas.
+"""Fontes de vagas: quadros públicos da Greenhouse e da Lever de empresas escolhidas.
 
-Checagem de 28/10/2026 (regra 3): a documentação diz que "Job Board data is publicly
-available, so authentication is not required for any GET endpoints", e o robots.txt da API
-só bloqueia /embed/. Nenhum login, proxy ou contorno de limite.
+Checagem de 28/10/2026 (regra 3): a documentação da Greenhouse diz que "Job Board data is
+publicly available, so authentication is not required for any GET endpoints", e o robots.txt
+da API só bloqueia /embed/. A Postings API da Lever é pública e documentada para montar páginas
+de carreira; o robots.txt dela permite tudo com "Crawl-delay: 1", respeitado na coleta.
+Nenhum login, proxy ou contorno de limite. A Gupy ficou de fora: a API oficial exige a chave
+da empresa contratante, e não há permissão clara para usar a API interna do portal.
 """
 
 import html
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from pydantic import BaseModel
 
 GREENHOUSE_API = "https://boards-api.greenhouse.io/v1/boards"
+LEVER_API = "https://api.lever.co/v0/postings"
+# Segundos entre pedidos à Lever (Crawl-delay do robots.txt da API).
+LEVER_DELAY = 1.0
 
 # Empresas cujo quadro de vagas na Greenhouse é lido. Chave: o "board token" da URL.
 # Conferidas em 29/10/2026 (vagas no Brasil entre parênteses). De fora: "juno" (vagas só nos
 # EUA, provavelmente outra empresa), "wise" (outra empresa), nubank e flash (quadro vazio).
+# Fora do setor financeiro, de ~100 empresas testadas só Braskem e Zup têm quadro aqui: a
+# maioria das indústrias e varejistas usa a Gupy.
 GREENHOUSE_BOARDS: dict[str, str] = {
     "stone": "Stone",  # 369
     "btgpactual": "BTG Pactual",  # 250
@@ -34,6 +42,14 @@ GREENHOUSE_BOARDS: dict[str, str] = {
     "getnet": "Getnet",  # 11
     "bancopan": "Banco PAN",  # 11
     "rdstation": "RD Station",  # 9
+    "braskem": "Braskem",  # 14
+    "zupinnovation": "Zup",  # 3
+}
+
+# Empresas cujo quadro na Lever é lido (conferidas em 29/10/2026).
+LEVER_BOARDS: dict[str, str] = {
+    "ciandt": "CI&T",  # 145
+    "neon": "Neon",  # 9
 }
 
 # O Job Finder é para vagas no Brasil. São empresas brasileiras, então vale o contrário de uma
@@ -119,3 +135,56 @@ async def fetch_greenhouse(http: httpx.AsyncClient, board: str) -> list[JobPosti
         return parse_greenhouse(board, response.json())
     except (httpx.HTTPError, ValueError, KeyError) as exc:
         raise JobSourceError(f"greenhouse/{board}: {exc}") from exc
+
+
+def lever_title(title: str) -> str:
+    """Tira o código interno do começo e o país do fim: "[ Job -  32032] Dev Java, Brazil"."""
+    title = re.sub(r"^\s*\[[^\]]*\]\s*-?\s*", "", title)
+    title = re.sub(r",\s*(brazil|brasil)\s*$", "", title, flags=re.IGNORECASE)
+    return title.strip()
+
+
+def parse_lever(board: str, payload: list[dict]) -> list[JobPosting]:
+    jobs = []
+    for raw in payload:
+        url = raw.get("hostedUrl") or ""
+        if not url.startswith("https://"):
+            continue
+        location = ((raw.get("categories") or {}).get("location") or "").strip()
+        # O país vem em código ISO quando a empresa preenche; senão, vale o local.
+        country = raw.get("country")
+        if (country and country != "BR") or (not country and not is_brazil_location(location)):
+            continue
+        sections = [raw.get("descriptionPlain") or ""]
+        for item in raw.get("lists") or []:
+            sections.append(item.get("text") or "")
+            sections.append(html_to_text(item.get("content") or ""))
+        sections.append(raw.get("additionalPlain") or "")
+        created = raw.get("createdAt")
+        jobs.append(
+            JobPosting(
+                source="lever",
+                board=board,
+                external_id=str(raw["id"]),
+                company=LEVER_BOARDS.get(board, board),
+                title=lever_title(raw["text"]),
+                location=location,
+                description="\n".join(part.strip() for part in sections if part.strip()),
+                url=url,
+                published_at=datetime.fromtimestamp(created / 1000, UTC) if created else None,
+                updated_at=None,
+            )
+        )
+    return jobs
+
+
+async def fetch_lever(http: httpx.AsyncClient, board: str) -> list[JobPosting]:
+    try:
+        response = await http.get(f"{LEVER_API}/{board}", params={"mode": "json"})
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise ValueError("resposta não é uma lista de vagas")
+        return parse_lever(board, payload)
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        raise JobSourceError(f"lever/{board}: {exc}") from exc

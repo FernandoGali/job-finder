@@ -4,9 +4,12 @@ import pytest
 from jobfinder_api.job_sources import (
     JobSourceError,
     fetch_greenhouse,
+    fetch_lever,
     html_to_text,
     is_brazil_location,
+    lever_title,
     parse_greenhouse,
+    parse_lever,
 )
 
 # Formato real da Greenhouse (conferido em 28/10/2026), com a descrição codificada duas vezes.
@@ -124,3 +127,106 @@ def test_parse_greenhouse_descarta_vagas_fora_do_brasil():
     payload = {"jobs": [{**PAYLOAD["jobs"][0], "location": {"name": "Mexico City, Mexico"}}]}
 
     assert parse_greenhouse("quintoandar", payload) == []
+
+
+# Formato real da Lever (conferido em 29/10/2026).
+LEVER_PAYLOAD = [
+    {
+        "id": "4a84bde1",
+        "text": "[ Job -  32032] Senior Data Analyst, Brazil",
+        "country": "BR",
+        "categories": {"location": "Campinas, Brazil", "commitment": "Homeoffice"},
+        "descriptionPlain": "Sobre a vaga",
+        "lists": [{"text": "Requisitos", "content": "<li>SQL</li><li>Power BI</li>"}],
+        "additionalPlain": "Benefícios",
+        "hostedUrl": "https://jobs.lever.co/ciandt/4a84bde1",
+        "createdAt": 1790779378271,
+    },
+    {  # fora do Brasil pelo país
+        "id": "2",
+        "text": "Data Product Manager, Colombia",
+        "country": "CO",
+        "categories": {"location": "Colombia"},
+        "hostedUrl": "https://jobs.lever.co/ciandt/2",
+    },
+    {  # sem país: vale o local
+        "id": "3",
+        "text": "Analista de CRM",
+        "categories": {"location": "São Paulo"},
+        "hostedUrl": "https://jobs.lever.co/neon/3",
+    },
+    {  # sem país e local de fora
+        "id": "4",
+        "text": "Engineer",
+        "categories": {"location": "Mexico City"},
+        "hostedUrl": "https://jobs.lever.co/neon/4",
+    },
+    {"id": "5", "text": "Sem link seguro", "country": "BR", "hostedUrl": "http://x/5"},
+]
+
+
+@pytest.mark.parametrize(
+    ("raw", "clean"),
+    [
+        (
+            "[ job -  32032] Senior Fullstack Developer ( Java + Angular ), Brazil",
+            "Senior Fullstack Developer ( Java + Angular )",
+        ),
+        ("[29753] - Senior Data Visualization Engineer", "Senior Data Visualization Engineer"),
+        ("Analista de Dados, Brasil", "Analista de Dados"),
+        ("Analista de CRM Sênior", "Analista de CRM Sênior"),
+    ],
+)
+def test_lever_title_tira_codigo_e_pais(raw, clean):
+    assert lever_title(raw) == clean
+
+
+def test_parse_lever_normaliza_e_so_fica_com_vagas_no_brasil():
+    jobs = parse_lever("ciandt", LEVER_PAYLOAD)
+
+    assert [job.external_id for job in jobs] == ["4a84bde1", "3"]
+    job = jobs[0]
+    assert job.source == "lever"
+    assert job.company == "CI&T"
+    assert job.title == "Senior Data Analyst"
+    assert job.location == "Campinas, Brazil"
+    assert job.description.splitlines() == [
+        "Sobre a vaga",
+        "Requisitos",
+        "SQL",
+        "Power BI",
+        "Benefícios",
+    ]
+    assert job.url == "https://jobs.lever.co/ciandt/4a84bde1"
+    assert job.published_at is not None and job.published_at.year == 2026
+    assert jobs[1].published_at is None
+
+
+@pytest.mark.anyio
+async def test_fetch_lever_pede_o_json_da_empresa():
+    requests: list[httpx.Request] = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json=LEVER_PAYLOAD)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        jobs = await fetch_lever(http, "ciandt")
+
+    assert len(jobs) == 2
+    assert str(requests[0].url) == "https://api.lever.co/v0/postings/ciandt?mode=json"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "handler",
+    [
+        lambda request: httpx.Response(404, json={"ok": False}),
+        lambda request: httpx.Response(200, json={"ok": False, "error": "Document not found"}),
+        _offline,
+    ],
+)
+async def test_fetch_lever_falha_vira_job_source_error(handler):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        with pytest.raises(JobSourceError, match="lever/ciandt"):
+            await fetch_lever(http, "ciandt")

@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(5);
+select plan(7);
 
 set local role service_role;
 select lives_ok(
@@ -24,6 +24,19 @@ select throws_ok(
      values ('greenhouse', 'exemplo', '2', 'Exemplo', 'Link inseguro', 'javascript:alert(1)') $$,
   '23514', null,
   'o link da vaga precisa ser https'
+);
+
+select lives_ok(
+  $$ insert into public.jobs (source, board, external_id, company, title, url)
+     values ('lever', 'exemplo', '1', 'Exemplo', 'Analista de Dados', 'https://jobs.lever.co/exemplo/1') $$,
+  'a Lever também é uma fonte aceita'
+);
+
+select throws_ok(
+  $$ insert into public.jobs (source, board, external_id, company, title, url)
+     values ('gupy', 'exemplo', '1', 'Exemplo', 'Analista', 'https://x.io/1') $$,
+  '23514', null,
+  'fonte fora da lista não entra'
 );
 reset role;
 

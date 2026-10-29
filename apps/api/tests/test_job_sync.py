@@ -48,12 +48,12 @@ class FakeStore:
 async def test_grava_as_vagas_e_apaga_as_que_fecharam():
     store = FakeStore()
 
-    async def fetch(board):
+    async def fetch(source, board):
         return [posting(board, "1"), posting(board, "2")]
 
-    report = await job_sync.sync_greenhouse(fetch, store, ["stone"], NOW)
+    report = await job_sync.sync_boards(fetch, store, [("greenhouse", "stone")], NOW)
 
-    assert report.saved == {"stone": 2}
+    assert report.saved == {"greenhouse/stone": 2}
     assert report.failed == {}
     [rows] = store.upserts
     assert [row["external_id"] for row in rows] == ["1", "2"]
@@ -65,12 +65,12 @@ async def test_grava_as_vagas_e_apaga_as_que_fecharam():
 async def test_quadro_sem_vagas_apaga_as_antigas_sem_gravar_nada():
     store = FakeStore()
 
-    async def fetch(board):
+    async def fetch(source, board):
         return []
 
-    report = await job_sync.sync_greenhouse(fetch, store, ["nubank"], NOW)
+    report = await job_sync.sync_boards(fetch, store, [("greenhouse", "nubank")], NOW)
 
-    assert report.saved == {"nubank": 0}
+    assert report.saved == {"greenhouse/nubank": 0}
     assert store.upserts == []
     assert store.deletes == [("greenhouse", "nubank", NOW.isoformat())]
 
@@ -78,28 +78,30 @@ async def test_quadro_sem_vagas_apaga_as_antigas_sem_gravar_nada():
 async def test_falha_numa_fonte_nao_apaga_nada_dela_e_nao_para_as_outras():
     store = FakeStore()
 
-    async def fetch(board):
+    async def fetch(source, board):
         if board == "stone":
             raise JobSourceError("greenhouse/stone: sem rede")
         return [posting(board, "1")]
 
-    report = await job_sync.sync_greenhouse(fetch, store, ["stone", "vtex"], NOW)
+    boards = [("greenhouse", "stone"), ("lever", "ciandt")]
+    report = await job_sync.sync_boards(fetch, store, boards, NOW)
 
-    assert report.failed == {"stone": "greenhouse/stone: sem rede"}
-    assert report.saved == {"vtex": 1}
-    assert [delete[1] for delete in store.deletes] == ["vtex"]
+    assert report.failed == {"greenhouse/stone": "greenhouse/stone: sem rede"}
+    assert report.saved == {"lever/ciandt": 1}
+    # As vagas antigas são apagadas só da fonte e da empresa certas.
+    assert store.deletes == [("lever", "ciandt", NOW.isoformat())]
 
 
 async def test_falha_ao_gravar_entra_no_relatorio_e_nao_apaga():
     store = FakeStore()
     store.fail = True
 
-    async def fetch(board):
+    async def fetch(source, board):
         return [posting(board, "1")]
 
-    report = await job_sync.sync_greenhouse(fetch, store, ["vtex"], NOW)
+    report = await job_sync.sync_boards(fetch, store, [("greenhouse", "vtex")], NOW)
 
-    assert "vtex" in report.failed
+    assert "greenhouse/vtex" in report.failed
     assert store.deletes == []
 
 
@@ -114,9 +116,14 @@ async def test_main_coleta_de_ponta_a_ponta(monkeypatch, capsys):
         ),
     )
     monkeypatch.setattr(job_sync, "GREENHOUSE_BOARDS", {"vtex": "VTEX", "fora": "Fora"})
+    monkeypatch.setattr(job_sync, "LEVER_BOARDS", {"ciandt": "CI&T"})
+    monkeypatch.setattr(job_sync.job_sources, "LEVER_DELAY", 0)
     saved: list[Any] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.lever.co":
+            job = {"id": "x1", "text": "Dev", "country": "BR", "hostedUrl": "https://l.co/x1"}
+            return httpx.Response(200, json=[job])
         if request.url.host == "boards-api.greenhouse.io":
             if "/fora/" in request.url.path:
                 return httpx.Response(503)
@@ -129,10 +136,11 @@ async def test_main_coleta_de_ponta_a_ponta(monkeypatch, capsys):
     code = await job_sync.main(transport=httpx.MockTransport(handler))
 
     assert code == 1  # um quadro falhou
-    assert [row["external_id"] for row in saved] == ["7"]
+    assert [row["external_id"] for row in saved] == ["7", "x1"]
     output = capsys.readouterr().out
-    assert "ok    vtex: 1 vagas" in output
-    assert "falha fora" in output
+    assert "ok    greenhouse/vtex: 1 vagas" in output
+    assert "ok    lever/ciandt: 1 vagas" in output
+    assert "falha greenhouse/fora" in output
 
 
 async def test_main_sem_configuracao_avisa_e_nao_coleta(monkeypatch, capsys):

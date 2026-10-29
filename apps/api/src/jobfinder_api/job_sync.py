@@ -1,6 +1,7 @@
 """Coleta de vagas: lê as fontes e guarda no banco.
 
-Por enquanto roda à mão, da pasta apps/api:  python -m jobfinder_api.job_sync
+Roda todo dia pelo GitHub Actions (.github/workflows/coleta-vagas.yml), ou à mão, da pasta
+apps/api:  python -m jobfinder_api.job_sync
 """
 
 import asyncio
@@ -11,12 +12,15 @@ from typing import Any, Protocol
 import httpx
 from pydantic import BaseModel
 
+from jobfinder_api import job_sources
 from jobfinder_api.config import get_settings
 from jobfinder_api.job_sources import (
     GREENHOUSE_BOARDS,
+    LEVER_BOARDS,
     JobPosting,
     JobSourceError,
     fetch_greenhouse,
+    fetch_lever,
 )
 from jobfinder_api.supabase_user import SupabaseAdminClient, SupabaseError
 
@@ -31,28 +35,35 @@ class SyncReport(BaseModel):
     failed: dict[str, str] = {}
 
 
-async def sync_greenhouse(
-    fetch: Callable[[str], Awaitable[list[JobPosting]]],
+async def sync_boards(
+    fetch: Callable[[str, str], Awaitable[list[JobPosting]]],
     store: JobStore,
-    boards: Iterable[str],
+    boards: Iterable[tuple[str, str]],
     now: datetime,
 ) -> SyncReport:
-    """Cada quadro é independente: se um falhar, os outros seguem e as vagas dele ficam como
-    estavam (nada é apagado por causa de uma falha de rede)."""
+    """Cada quadro (fonte, empresa) é independente: se um falhar, os outros seguem e as vagas
+    dele ficam como estavam (nada é apagado por causa de uma falha de rede)."""
     report = SyncReport()
     stamp = now.isoformat()
-    for board in boards:
+    for source, board in boards:
+        key = f"{source}/{board}"
         try:
-            jobs = await fetch(board)
+            jobs = await fetch(source, board)
             rows = [{**job.model_dump(mode="json"), "fetched_at": stamp} for job in jobs]
             if rows:
                 await store.upsert_jobs(rows)
-            await store.delete_stale_jobs("greenhouse", board, stamp)
+            await store.delete_stale_jobs(source, board, stamp)
         except (JobSourceError, SupabaseError) as exc:
-            report.failed[board] = str(exc)
+            report.failed[key] = str(exc)
             continue
-        report.saved[board] = len(rows)
+        report.saved[key] = len(rows)
     return report
+
+
+def all_boards() -> list[tuple[str, str]]:
+    return [("greenhouse", board) for board in GREENHOUSE_BOARDS] + [
+        ("lever", board) for board in LEVER_BOARDS
+    ]
 
 
 async def main(transport: httpx.AsyncBaseTransport | None = None) -> int:
@@ -62,9 +73,14 @@ async def main(transport: httpx.AsyncBaseTransport | None = None) -> int:
         return 2
     async with httpx.AsyncClient(timeout=60, transport=transport) as http:
         store = SupabaseAdminClient(settings.supabase_url, settings.supabase_service_role_key, http)
-        report = await sync_greenhouse(
-            lambda board: fetch_greenhouse(http, board), store, GREENHOUSE_BOARDS, datetime.now(UTC)
-        )
+
+        async def fetch(source: str, board: str) -> list[JobPosting]:
+            if source == "lever":
+                await asyncio.sleep(job_sources.LEVER_DELAY)
+                return await fetch_lever(http, board)
+            return await fetch_greenhouse(http, board)
+
+        report = await sync_boards(fetch, store, all_boards(), datetime.now(UTC))
     for board, count in report.saved.items():
         print(f"ok    {board}: {count} vagas")
     for board, error in report.failed.items():
