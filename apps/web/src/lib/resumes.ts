@@ -48,6 +48,8 @@ export type ResumeRewrite = {
   education: { institution: string; course: string | null; period: string | null }[];
   skills: string[];
   certifications: string[];
+  // Pontos de alerta corrigidos. Ausente nas reescritas feitas antes de existir.
+  fixes?: string[];
   questions: string[];
 };
 

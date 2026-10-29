@@ -71,6 +71,17 @@ export function RewriteCard({ rewrite }: { rewrite: ResumeRewrite }) {
         </>
       )}
 
+      {rewrite.fixes && rewrite.fixes.length > 0 && (
+        <div style={{ marginTop: 8, background: "#ecfdf5", borderRadius: 8, padding: 8 }}>
+          <h4 style={{ fontSize: "0.95em", margin: "0 0 4px" }}>Pontos de alerta corrigidos</h4>
+          <ul aria-label="Pontos de alerta corrigidos" style={{ margin: 0, paddingLeft: 20 }}>
+            {rewrite.fixes.map((fix) => (
+              <li key={fix}>{fix}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {rewrite.questions.length > 0 && (
         <div style={{ marginTop: 8, background: "#fef3c7", borderRadius: 8, padding: 8 }}>
           <h4 style={{ fontSize: "0.95em", margin: "0 0 4px" }}>Para deixar seu currículo mais forte</h4>

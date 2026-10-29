@@ -20,6 +20,7 @@ const rewrite: ResumeRewrite = {
   education: [{ institution: "Universidade Y", course: "Engenharia de Produção", period: null }],
   skills: ["SQL", "Python"],
   certifications: ["Linux Unhatched"],
+  fixes: ["Frases de responsabilidade viraram resultados."],
   questions: ["Quantas pessoas usavam os relatórios?"],
 };
 
@@ -42,6 +43,8 @@ describe("RewriteCard", () => {
       "listitem",
     );
     expect(questions.map((item) => item.textContent)).toEqual(["Quantas pessoas usavam os relatórios?"]);
+    const fixes = within(screen.getByRole("list", { name: "Pontos de alerta corrigidos" })).getAllByRole("listitem");
+    expect(fixes.map((item) => item.textContent)).toEqual(["Frases de responsabilidade viraram resultados."]);
   });
 
   it("esconde as seções vazias", () => {
@@ -62,5 +65,7 @@ describe("RewriteCard", () => {
     expect(screen.queryByRole("heading", { name: "Resumo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Experiência" })).not.toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Perguntas para fortalecer o currículo" })).not.toBeInTheDocument();
+    // Reescrita antiga, feita antes dos pontos de alerta: a seção some.
+    expect(screen.queryByRole("list", { name: "Pontos de alerta corrigidos" })).not.toBeInTheDocument();
   });
 });

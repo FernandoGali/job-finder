@@ -46,6 +46,7 @@ def answer(**overrides: Any) -> dict[str, Any]:
         ],
         "skills": ["Python", "SQL", "Power BI"],
         "certifications": ["Linux Unhatched"],
+        "fixes": ["Frases de responsabilidade viraram resultados."],
         "questions": ["Quantas pessoas usavam os relatórios?"],
         **overrides,
     }
@@ -83,6 +84,7 @@ async def test_reescreve_e_mantem_o_que_confere_com_o_curriculo():
     assert len(data["experiences"][0]["bullets"]) == 2
     assert data["education"][0]["course"] == "Engenharia de Produção"
     assert data["skills"] == ["Python", "SQL", "Power BI"]
+    assert data["fixes"] == ["Frases de responsabilidade viraram resultados."]
     assert data["questions"] == ["Quantas pessoas usavam os relatórios?"]
 
 
@@ -99,8 +101,14 @@ async def test_pedido_leva_cargo_palavras_chave_e_regras():
     assert "<cargo_alvo>Analista de Dados</cargo_alvo>" in content
     assert "<palavras_chave>SQL, Python</palavras_chave>" in content
     assert f"<curriculo>\n{RESUME}\n</curriculo>" in content
+    # O pedido do Fernando: modelo ATS mestre, fórmula XYZ, alertas de 10 segundos, nunca inventar.
+    assert "modelo ATS mestre" in request["system"]
+    assert "fórmula XYZ do Google" in request["system"]
+    assert "gerente de" in request["system"] and "menos de 10 segundos" in request["system"]
+    assert "NUNCA invente nenhuma informação" in request["system"]
     assert "Nunca invente nem complete empresa, cargo, data, número" in request["system"]
-    assert "faça uma pergunta em questions" in request["system"]
+    # Sem a medida no currículo, o Y da fórmula vira pergunta, nunca número inventado.
+    assert "pergunte o Y em questions" in request["system"]
 
 
 async def test_sem_cargo_alvo_avisa_no_pedido():
@@ -174,6 +182,7 @@ async def test_formacao_competencias_e_cursos_tambem_sao_conferidos():
         education=education,
         skills=["Python", "Kubernetes", "python"],
         certifications=["Linux Unhatched", "AWS Cloud Practitioner"],
+        fixes=[f"Ajuste {i}." for i in range(9)] + [" "],
         questions=[f"Pergunta {i}?" for i in range(8)] + ["  "],
     )
 
@@ -183,6 +192,7 @@ async def test_formacao_competencias_e_cursos_tambem_sao_conferidos():
     assert result.skills == ["Python"]
     assert result.certifications == ["Linux Unhatched"]
     assert len(result.questions) == 5
+    assert len(result.fixes) == 6
 
 
 @pytest.mark.parametrize(
