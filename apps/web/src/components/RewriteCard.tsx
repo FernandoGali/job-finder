@@ -1,9 +1,11 @@
 import type { ResumeRewrite } from "@/lib/resumes";
 
+import { RewriteQuestions } from "./RewriteQuestions";
+
 const sectionTitle = { fontSize: "0.95em", margin: "8px 0 4px", borderBottom: "1px solid #e5e7eb" } as const;
 
 /** O currículo reescrito, no formato que os sistemas de triagem leem bem: uma coluna e seções padrão. */
-export function RewriteCard({ rewrite }: { rewrite: ResumeRewrite }) {
+export function RewriteCard({ resumeId, rewrite }: { resumeId: string; rewrite: ResumeRewrite }) {
   return (
     <section
       aria-label="Currículo reescrito para ATS"
@@ -82,19 +84,7 @@ export function RewriteCard({ rewrite }: { rewrite: ResumeRewrite }) {
         </div>
       )}
 
-      {rewrite.questions.length > 0 && (
-        <div style={{ marginTop: 8, background: "#fef3c7", borderRadius: 8, padding: 8 }}>
-          <h4 style={{ fontSize: "0.95em", margin: "0 0 4px" }}>Para deixar seu currículo mais forte</h4>
-          <p style={{ margin: 0, fontSize: "0.85em" }}>
-            Não inventamos números nem resultados. Se você souber estas respostas, inclua no currículo:
-          </p>
-          <ul aria-label="Perguntas para fortalecer o currículo" style={{ margin: "4px 0 0", paddingLeft: 20 }}>
-            {rewrite.questions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {rewrite.questions.length > 0 && <RewriteQuestions resumeId={resumeId} questions={rewrite.questions} />}
     </section>
   );
 }

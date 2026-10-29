@@ -125,17 +125,23 @@ describe("rewriteResume", () => {
   it("pede a reescrita com o token e devolve o resultado", async () => {
     const fetcher = vi.fn().mockResolvedValue(json(rewrite));
 
-    expect(await rewriteResume("token-abc", "r-1", fetcher, "http://api.test")).toEqual({ state: "ok", rewrite });
+    const answers = [{ question: "Quantos relatórios?", answer: "12 por semana" }];
+
+    expect(await rewriteResume("token-abc", "r-1", answers, fetcher, "http://api.test")).toEqual({
+      state: "ok",
+      rewrite,
+    });
     expect(fetcher).toHaveBeenCalledWith("http://api.test/curriculos/r-1/reescrita", {
       method: "POST",
-      headers: { Authorization: "Bearer token-abc" },
+      headers: { Authorization: "Bearer token-abc", "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
     });
   });
 
   it("devolve a mensagem da API quando a reescrita falha", async () => {
     const fetcher = vi.fn().mockResolvedValue(json({ detail: "Analise o currículo antes de reescrever." }, 409));
 
-    expect(await rewriteResume("t", "r-1", fetcher, "http://api.test")).toEqual({
+    expect(await rewriteResume("t", "r-1", [], fetcher, "http://api.test")).toEqual({
       state: "error",
       message: "Analise o currículo antes de reescrever.",
     });
@@ -144,7 +150,7 @@ describe("rewriteResume", () => {
   it("avisa sem lançar erro quando a API está fora do ar", async () => {
     const fetcher = vi.fn().mockRejectedValue(new Error("connection refused"));
 
-    expect((await rewriteResume("t", "r-1", fetcher, "http://api.test")).state).toBe("error");
+    expect((await rewriteResume("t", "r-1", [], fetcher, "http://api.test")).state).toBe("error");
   });
 });
 

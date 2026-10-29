@@ -3,10 +3,11 @@
 import logging
 import uuid
 from collections.abc import AsyncIterator
-from typing import Any, Protocol
+from typing import Annotated, Any, Protocol
 
 import anthropic
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from jobfinder_api.admin import get_supabase_admin
 from jobfinder_api.auth import UserSession, get_session
@@ -14,7 +15,7 @@ from jobfinder_api.config import Settings, get_settings
 from jobfinder_api.job_demand import market_demand, resume_terms
 from jobfinder_api.job_matching import JobForMatching
 from jobfinder_api.resume_analysis import AnalysisError, AnalysisUnavailableError
-from jobfinder_api.resume_rewrite import ResumeRewrite, ResumeRewriter, RewriteResult
+from jobfinder_api.resume_rewrite import Answer, ResumeRewrite, ResumeRewriter, RewriteResult
 from jobfinder_api.resume_text import UnreadableResumeError, extract_text
 from jobfinder_api.resumes import ResumeStore, get_resume_store
 from jobfinder_api.supabase_user import SupabaseError
@@ -24,8 +25,18 @@ logger = logging.getLogger(__name__)
 
 class Rewriter(Protocol):
     async def rewrite(
-        self, resume_text: str, target_role: str | None, keywords: list[str]
+        self,
+        resume_text: str,
+        target_role: str | None,
+        keywords: list[str],
+        answers: list[Answer] | None = None,
     ) -> RewriteResult: ...
+
+
+class RewriteRequest(BaseModel):
+    """Respostas às perguntas da reescrita anterior. Sem corpo, reescreve só com o currículo."""
+
+    answers: list[Answer] = Field(default_factory=list, max_length=5)
 
 
 class RewriteBackend(Protocol):
@@ -63,7 +74,10 @@ async def rewrite_resume(
     store: ResumeStore = Depends(get_resume_store),
     rewriter: Rewriter = Depends(get_rewriter),
     backend: RewriteBackend = Depends(get_supabase_admin),
+    request: Annotated[RewriteRequest | None, Body()] = None,
 ) -> ResumeRewrite:
+    # Resposta em branco não é fato nenhum.
+    answers = [a for a in (request.answers if request else []) if a.answer.strip()]
     try:
         # Lido com o token da pessoa: o RLS garante que o currículo é dela.
         resume = await store.get_resume_file(str(resume_id))
@@ -98,7 +112,7 @@ async def rewrite_resume(
     roles = profile.get("suggested_roles") or []
     target_role = roles[0]["title"] if roles else profile.get("target_role")
     try:
-        result = await rewriter.rewrite(text, target_role, rewrite_keywords(profile, jobs))
+        result = await rewriter.rewrite(text, target_role, rewrite_keywords(profile, jobs), answers)
     except AnalysisUnavailableError:
         logger.exception("IA indisponível")
         raise HTTPException(

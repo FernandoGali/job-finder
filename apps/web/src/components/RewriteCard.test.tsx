@@ -1,9 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ResumeRewrite } from "@/lib/resumes";
 
 import { RewriteCard } from "./RewriteCard";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const rewrite: ResumeRewrite = {
   headline: "Analista de Dados",
@@ -26,7 +28,7 @@ const rewrite: ResumeRewrite = {
 
 describe("RewriteCard", () => {
   it("mostra o currículo em seções padrão e as perguntas", () => {
-    render(<RewriteCard rewrite={rewrite} />);
+    render(<RewriteCard resumeId="r-1" rewrite={rewrite} />);
 
     const card = screen.getByRole("region", { name: "Currículo reescrito para ATS" });
     expect(card).toHaveTextContent("Analista de Dados");
@@ -39,10 +41,8 @@ describe("RewriteCard", () => {
     expect(screen.getByText("Empresa Y")).toBeInTheDocument();
     expect(card).toHaveTextContent("Engenharia de Produção · Universidade Y");
     expect(card).toHaveTextContent("SQL · Python");
-    const questions = within(screen.getByRole("list", { name: "Perguntas para fortalecer o currículo" })).getAllByRole(
-      "listitem",
-    );
-    expect(questions.map((item) => item.textContent)).toEqual(["Quantas pessoas usavam os relatórios?"]);
+    // Cada pergunta tem um campo para a resposta.
+    expect(screen.getByLabelText("Quantas pessoas usavam os relatórios?")).toBeInTheDocument();
     const fixes = within(screen.getByRole("list", { name: "Pontos de alerta corrigidos" })).getAllByRole("listitem");
     expect(fixes.map((item) => item.textContent)).toEqual(["Frases de responsabilidade viraram resultados."]);
   });
@@ -50,6 +50,7 @@ describe("RewriteCard", () => {
   it("esconde as seções vazias", () => {
     render(
       <RewriteCard
+        resumeId="r-1"
         rewrite={{
           headline: null,
           summary: "",
@@ -64,7 +65,7 @@ describe("RewriteCard", () => {
 
     expect(screen.queryByRole("heading", { name: "Resumo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Experiência" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "Perguntas para fortalecer o currículo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Perguntas para fortalecer o currículo" })).not.toBeInTheDocument();
     // Reescrita antiga, feita antes dos pontos de alerta: a seção some.
     expect(screen.queryByRole("list", { name: "Pontos de alerta corrigidos" })).not.toBeInTheDocument();
   });

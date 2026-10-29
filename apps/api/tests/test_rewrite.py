@@ -7,7 +7,7 @@ import pytest
 from jobfinder_api.admin import get_supabase_admin
 from jobfinder_api.config import Settings, get_settings
 from jobfinder_api.resume_analysis import MODEL, AnalysisError, AnalysisUnavailableError
-from jobfinder_api.resume_rewrite import ResumeRewrite, RewriteResult
+from jobfinder_api.resume_rewrite import Answer, ResumeRewrite, RewriteResult
 from jobfinder_api.resumes import PDF
 from jobfinder_api.rewrite import get_rewriter
 from jobfinder_api.supabase_user import SupabaseAdminClient, SupabaseError
@@ -49,10 +49,12 @@ JOBS = [
 class FakeRewriter:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str | None, list[str]]] = []
+        self.answers: list[list[Answer]] = []
         self.error: Exception | None = None
 
-    async def rewrite(self, resume_text, target_role, keywords) -> RewriteResult:
+    async def rewrite(self, resume_text, target_role, keywords, answers=None) -> RewriteResult:
         self.calls.append((resume_text, target_role, keywords))
+        self.answers.append(answers or [])
         if self.error:
             raise self.error
         return RewriteResult(rewrite=REWRITE, model=MODEL)
@@ -221,3 +223,40 @@ async def test_admin_grava_a_reescrita_substituindo_a_anterior():
     assert request.url.params["on_conflict"] == "resume_id"
     assert request.headers["Prefer"] == "resolution=merge-duplicates,return=minimal"
     assert json.loads(request.content) == {"resume_id": "r1", "content": {}}
+
+
+def test_reescreve_com_as_respostas_da_pessoa(client, store, rewriter, backend):
+    resume_id = add_resume(store)
+    answers = [
+        {"question": "Quantos relatórios?", "answer": "12 por semana"},
+        {"question": "Qual o impacto?", "answer": "   "},  # em branco: não vai
+    ]
+
+    response = client.post(f"/curriculos/{resume_id}/reescrita", json={"answers": answers})
+
+    assert response.status_code == 200
+    assert rewriter.answers == [[Answer(question="Quantos relatórios?", answer="12 por semana")]]
+
+
+def test_sem_corpo_reescreve_so_com_o_curriculo(client, store, rewriter, backend):
+    resume_id = add_resume(store)
+
+    client.post(f"/curriculos/{resume_id}/reescrita")
+
+    assert rewriter.answers == [[]]
+
+
+@pytest.mark.parametrize(
+    "answers",
+    [
+        [{"question": f"P{i}?", "answer": "r"} for i in range(6)],  # mais que 5
+        [{"question": "P?", "answer": "x" * 1001}],  # resposta longa demais
+    ],
+)
+def test_respostas_fora_do_limite_sao_recusadas(client, store, rewriter, backend, answers):
+    resume_id = add_resume(store)
+
+    response = client.post(f"/curriculos/{resume_id}/reescrita", json={"answers": answers})
+
+    assert response.status_code == 422
+    assert rewriter.calls == []

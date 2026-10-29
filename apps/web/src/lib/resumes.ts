@@ -67,6 +67,9 @@ export type UploadResult = { state: "ok"; resume: Resume } | { state: "error"; m
 
 export type AnalysisResult = { state: "ok"; profile: Profile } | { state: "error"; message: string };
 
+/** Resposta a uma pergunta da reescrita: entra na próxima como fato informado pela pessoa. */
+export type RewriteAnswer = { question: string; answer: string };
+
 export type RewriteResult = { state: "ok"; rewrite: ResumeRewrite } | { state: "error"; message: string };
 
 export type ResumesResult = { state: "ok"; resumes: Resume[] } | { state: "error"; message: string };
@@ -156,13 +159,15 @@ export async function analyzeResume(
 export async function rewriteResume(
   accessToken: string,
   resumeId: string,
+  answers: RewriteAnswer[] = [],
   fetcher: typeof fetch = fetch,
   baseUrl: string = apiBaseUrl(),
 ): Promise<RewriteResult> {
   try {
     const response = await fetcher(`${baseUrl}/curriculos/${resumeId}/reescrita`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
     });
     if (response.ok) {
       return { state: "ok", rewrite: (await response.json()) as ResumeRewrite };

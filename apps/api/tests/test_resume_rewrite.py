@@ -7,7 +7,7 @@ import httpx2
 import pytest
 
 from jobfinder_api.resume_analysis import MODEL, AnalysisError, AnalysisUnavailableError
-from jobfinder_api.resume_rewrite import OUTPUT_SCHEMA, ResumeRewriter
+from jobfinder_api.resume_rewrite import OUTPUT_SCHEMA, Answer, ResumeRewriter
 
 pytestmark = pytest.mark.anyio
 
@@ -235,3 +235,39 @@ async def test_pedido_recusado_pela_api_vira_analysis_error():
 
     with pytest.raises(AnalysisError, match="HTTP 400"):
         await rewrite(FakeClaude(error=error))
+
+
+async def test_respostas_entram_no_pedido_e_valem_como_fato():
+    experiences = [
+        {
+            "company": "Empresa X",
+            "role": "Analista de BI",
+            "period": "2021 a 2025",
+            "bullets": [
+                "Automatizei 12 relatórios, usados por 80 pessoas.",  # 80 veio da resposta
+                "Reduzi custos em 30%.",  # 30% não está em lugar nenhum
+            ],
+        }
+    ]
+    fake = FakeClaude(json.dumps(answer(experiences=experiences)))
+    answers = [Answer(question="Quantas pessoas usavam os relatórios?", answer="Cerca de 80")]
+
+    result = await ResumeRewriter(fake).rewrite(RESUME, "Analista de Dados", [], answers)
+
+    content = fake.requests[0]["messages"][0]["content"]
+    assert content.endswith(
+        "<respostas>\nPergunta: Quantas pessoas usavam os relatórios?\n"
+        "Resposta: Cerca de 80\n</respostas>"
+    )
+    assert "não pergunte de novo o que já foi respondido" in fake.requests[0]["system"]
+    assert result.rewrite.experiences[0].bullets == [
+        "Automatizei 12 relatórios, usados por 80 pessoas."
+    ]
+
+
+async def test_sem_respostas_o_pedido_nao_tem_o_bloco():
+    fake = FakeClaude(json.dumps(answer()))
+
+    await rewrite(fake)
+
+    assert "<respostas>" not in fake.requests[0]["messages"][0]["content"]

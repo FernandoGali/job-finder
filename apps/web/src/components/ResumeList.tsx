@@ -40,7 +40,7 @@ export function ResumeList({ result }: { result: ResumesResult }) {
         <>
           <ProfileCard profile={latest.profile} />
           <AnalyzeButton resumeId={latest.id} label="Analisar de novo" />
-          {latest.rewrite && <RewriteCard rewrite={latest.rewrite.content} />}
+          {latest.rewrite && <RewriteCard resumeId={latest.id} rewrite={latest.rewrite.content} />}
           <RewriteButton
             resumeId={latest.id}
             label={latest.rewrite ? "Reescrever de novo" : "Reescrever para ATS"}
