@@ -7,7 +7,7 @@ from typing import Any, Protocol
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from jobfinder_api.admin import get_supabase_admin
-from jobfinder_api.job_demand import RoleDemand, market_demand
+from jobfinder_api.job_demand import RoleDemand, market_demand, resume_terms
 from jobfinder_api.job_matching import JobForMatching, JobMatch, ProfileForMatching, rank_jobs
 from jobfinder_api.resumes import ResumeStore, get_resume_store
 from jobfinder_api.supabase_user import SupabaseError
@@ -70,9 +70,4 @@ async def job_demand(
     profile, jobs = await _profile_and_jobs(store, reader)
     roles = profile.get("suggested_roles") or []
     titles = [role["title"] for role in roles] or profile.get("search_terms") or []
-    # Competências, não cursos: "Fundamentos do Python 1" não quer dizer que a pessoa usa Python.
-    resume_terms = [
-        *(profile.get("skills") or []),
-        *(keyword for role in roles for keyword in role.get("keywords", [])),
-    ]
-    return market_demand(titles, jobs, resume_terms, profile.get("seniority"))
+    return market_demand(titles, jobs, resume_terms(profile), profile.get("seniority"))

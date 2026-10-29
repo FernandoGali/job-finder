@@ -92,6 +92,16 @@ class SupabaseAdminClient(_SupabaseHttp):
             params={"source": f"eq.{source}", "board": f"eq.{board}", "fetched_at": f"lt.{before}"},
         )
 
+    async def save_rewrite(self, row: dict[str, Any]) -> None:
+        """Grava (ou substitui) a reescrita de um currículo. Só a API grava reescritas."""
+        await self._request(
+            "POST",
+            "/rest/v1/resume_rewrites",
+            params={"on_conflict": "resume_id"},
+            json=row,
+            headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+        )
+
     async def save_profile(self, row: dict[str, Any]) -> None:
         """Grava (ou substitui) o perfil de um currículo. Só a API grava perfis."""
         await self._request(
@@ -138,7 +148,8 @@ class SupabaseUserClient(_SupabaseHttp):
             params={
                 "select": (
                     "id,original_filename,content_type,size_bytes,uploaded_at,"
-                    "profile:resume_profiles(target_role,seniority,skills,certifications,suggested_roles,search_terms,summary,analyzed_at)"
+                    "profile:resume_profiles(target_role,seniority,skills,certifications,suggested_roles,search_terms,summary,analyzed_at),"
+                    "rewrite:resume_rewrites(content,created_at)"
                 ),
                 "order": "uploaded_at.desc",
             },

@@ -40,6 +40,17 @@ export type Profile = {
   summary: string;
 };
 
+/** Currículo reescrito pela IA. A API conferiu empresas, cargos, datas e números no original. */
+export type ResumeRewrite = {
+  headline: string | null;
+  summary: string;
+  experiences: { company: string; role: string | null; period: string | null; bullets: string[] }[];
+  education: { institution: string; course: string | null; period: string | null }[];
+  skills: string[];
+  certifications: string[];
+  questions: string[];
+};
+
 export type Resume = {
   id: string;
   original_filename: string;
@@ -47,11 +58,14 @@ export type Resume = {
   size_bytes: number;
   uploaded_at: string;
   profile?: (Profile & { analyzed_at: string }) | null;
+  rewrite?: { content: ResumeRewrite; created_at: string } | null;
 };
 
 export type UploadResult = { state: "ok"; resume: Resume } | { state: "error"; message: string };
 
 export type AnalysisResult = { state: "ok"; profile: Profile } | { state: "error"; message: string };
+
+export type RewriteResult = { state: "ok"; rewrite: ResumeRewrite } | { state: "error"; message: string };
 
 export type ResumesResult = { state: "ok"; resumes: Resume[] } | { state: "error"; message: string };
 
@@ -129,6 +143,27 @@ export async function analyzeResume(
     });
     if (response.ok) {
       return { state: "ok", profile: (await response.json()) as Profile };
+    }
+    return { state: "error", message: await apiErrorMessage(response) };
+  } catch {
+    return { state: "error", message: API_OFFLINE };
+  }
+}
+
+/** Pede à API a reescrita do currículo para ATS. Leva mais tempo que a análise. */
+export async function rewriteResume(
+  accessToken: string,
+  resumeId: string,
+  fetcher: typeof fetch = fetch,
+  baseUrl: string = apiBaseUrl(),
+): Promise<RewriteResult> {
+  try {
+    const response = await fetcher(`${baseUrl}/curriculos/${resumeId}/reescrita`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (response.ok) {
+      return { state: "ok", rewrite: (await response.json()) as ResumeRewrite };
     }
     return { state: "error", message: await apiErrorMessage(response) };
   } catch {

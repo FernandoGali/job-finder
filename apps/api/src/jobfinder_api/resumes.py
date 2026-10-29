@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from jobfinder_api.auth import UserSession, get_session
 from jobfinder_api.config import Settings, get_settings
 from jobfinder_api.resume_analysis import SuggestedRole
+from jobfinder_api.resume_rewrite import ResumeRewrite
 from jobfinder_api.supabase_user import SupabaseError, SupabaseUserClient
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,11 @@ class ProfileOut(BaseModel):
     analyzed_at: datetime
 
 
+class RewriteOut(BaseModel):
+    content: ResumeRewrite
+    created_at: datetime
+
+
 class ResumeOut(BaseModel):
     id: str
     original_filename: str
@@ -48,6 +54,7 @@ class ResumeOut(BaseModel):
     size_bytes: int
     uploaded_at: datetime
     profile: ProfileOut | None = None
+    rewrite: RewriteOut | None = None
 
 
 class ResumeStore(Protocol):

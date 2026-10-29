@@ -182,6 +182,17 @@ def role_demand(
     )
 
 
+def resume_terms(profile: dict) -> list[str]:
+    """O que o currículo cita, para marcar os itens que a pessoa já tem: competências e
+    palavras-chave dos cargos sugeridos. Cursos não entram: "Fundamentos do Python 1" não
+    quer dizer que a pessoa usa Python."""
+    roles = profile.get("suggested_roles") or []
+    return [
+        *(profile.get("skills") or []),
+        *(keyword for role in roles for keyword in role.get("keywords", [])),
+    ]
+
+
 def market_demand(
     roles: list[str],
     jobs: list[JobForMatching],

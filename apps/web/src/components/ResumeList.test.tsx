@@ -83,6 +83,40 @@ describe("ResumeList com análise", () => {
 
     expect(screen.getByRole("region", { name: "Perfil lido pela IA" })).toHaveTextContent("Analista de Dados");
     expect(screen.getByRole("button", { name: "Analisar de novo" })).toBeInTheDocument();
+    // Depois da análise, a reescrita fica disponível.
+    expect(screen.getByRole("button", { name: "Reescrever para ATS" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Currículo reescrito para ATS" })).not.toBeInTheDocument();
+  });
+
+  it("mostra a última reescrita e oferece reescrever de novo", () => {
+    const rewritten = {
+      ...resume("2", "novo.pdf", "2026-10-27T18:30:00Z"),
+      profile: {
+        target_role: "Analista de Dados",
+        seniority: "pleno" as const,
+        skills: [],
+        certifications: [],
+        search_terms: [],
+        summary: "",
+        analyzed_at: "2026-10-27T18:31:00Z",
+      },
+      rewrite: {
+        content: {
+          headline: "Analista de Dados",
+          summary: "Resumo reescrito.",
+          experiences: [],
+          education: [],
+          skills: [],
+          certifications: [],
+          questions: [],
+        },
+        created_at: "2026-10-29T12:00:00Z",
+      },
+    };
+    render(<ResumeList result={{ state: "ok", resumes: [rewritten] }} />);
+
+    expect(screen.getByRole("region", { name: "Currículo reescrito para ATS" })).toHaveTextContent("Resumo reescrito.");
+    expect(screen.getByRole("button", { name: "Reescrever de novo" })).toBeInTheDocument();
   });
 
   it("oferece a análise quando o currículo ainda não foi analisado", () => {
@@ -90,5 +124,7 @@ describe("ResumeList com análise", () => {
 
     expect(screen.getByText("Este currículo ainda não foi analisado.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analisar" })).toBeInTheDocument();
+    // Sem análise não há cargo-alvo: a reescrita ainda não aparece.
+    expect(screen.queryByRole("button", { name: /Reescrever/ })).not.toBeInTheDocument();
   });
 });

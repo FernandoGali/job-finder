@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from jobfinder_api import __version__, account, analysis, jobs, resumes
+from jobfinder_api import __version__, account, analysis, jobs, resumes, rewrite
 from jobfinder_api.auth import CurrentUser, get_current_user
 from jobfinder_api.config import Settings, get_settings
 
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(account.router)
     app.include_router(analysis.router)
     app.include_router(jobs.router)
+    app.include_router(rewrite.router)
     return app
 
 

@@ -3,6 +3,8 @@ import type { ResumesResult } from "@/lib/resumes";
 import { AnalyzeButton } from "./AnalyzeButton";
 import { DeleteResumeButton } from "./DeleteResumeButton";
 import { ProfileCard } from "./ProfileCard";
+import { RewriteButton } from "./RewriteButton";
+import { RewriteCard } from "./RewriteCard";
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -38,6 +40,11 @@ export function ResumeList({ result }: { result: ResumesResult }) {
         <>
           <ProfileCard profile={latest.profile} />
           <AnalyzeButton resumeId={latest.id} label="Analisar de novo" />
+          {latest.rewrite && <RewriteCard rewrite={latest.rewrite.content} />}
+          <RewriteButton
+            resumeId={latest.id}
+            label={latest.rewrite ? "Reescrever de novo" : "Reescrever para ATS"}
+          />
         </>
       ) : (
         <>
