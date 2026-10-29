@@ -13,6 +13,7 @@ from jobfinder_api.resume_analysis import (
     AnalysisUnavailableError,
     ResumeAnalyzer,
     ResumeProfile,
+    SuggestedRole,
 )
 from jobfinder_api.resumes import PDF
 from jobfinder_api.supabase_user import SupabaseError
@@ -23,6 +24,9 @@ PROFILE = ResumeProfile(
     seniority="pleno",
     skills=["Python", "SQL"],
     certifications=["Fundamentos do Python 1"],
+    suggested_roles=[
+        SuggestedRole(title="Analista de Dados", evidence="Analista de Dados", keywords=["SQL"])
+    ],
     search_terms=["Analista de Dados"],
     summary="Resumo.",
 )

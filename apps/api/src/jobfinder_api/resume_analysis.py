@@ -1,7 +1,8 @@
-"""Leitura do currículo no estilo ATS com o Claude: cargo-alvo, senioridade e competências.
+"""Leitura do currículo no estilo ATS com o Claude: cargo-alvo, senioridade, competências e
+cargos sugeridos.
 
 Regra do projeto: a IA não inventa. O pedido exige trechos copiados do currículo, e
-depois o código confere cada competência e a evidência do cargo contra o texto original;
+depois o código confere cada competência, palavra-chave e evidência contra o texto original;
 o que não aparece no currículo é descartado.
 """
 
@@ -16,7 +17,8 @@ from pydantic import BaseModel, ValidationError
 MODEL = "claude-opus-5-5"
 MAX_SKILLS = 30
 MAX_CERTIFICATIONS = 15
-MAX_SEARCH_TERMS = 4
+MAX_SUGGESTED_ROLES = 3
+MAX_ROLE_KEYWORDS = 8
 MAX_SEARCH_TERM_WORDS = 4
 # Palavras de nível que saem do termo de busca. "Estágio" fica: é um tipo de vaga.
 LEVEL_WORDS = {"júnior", "junior", "jr", "pleno", "pl", "sênior", "senior", "sr"}
@@ -46,12 +48,17 @@ competência (ex.: "Fundamentos do Python 1" não entra; "Python" entra se apare
 - certifications: nomes de cursos, treinamentos e certificações citados, escritos exatamente \
 como aparecem no currículo, sem repetir, no máximo 15. Não inclua formação acadêmica \
 (graduação, pós, MBA) nem competências soltas.
-- search_terms: de 2 a 4 termos para buscar vagas para esta pessoa em sites de emprego no \
-Brasil, do mais adequado ao menos, coerentes com o cargo-alvo. Use títulos de vaga comuns no \
-mercado brasileiro, mesmo que o currículo use outra palavra; evite variações raras. Cada \
-termo tem de 2 a 4 palavras, sem nível (júnior, pleno, sênior), sem "ou", vírgulas, barras \
-nem parênteses. "Estágio" pode entrar, porque é um tipo de vaga (ex.: "Analista de Dados", \
-"Estágio em Dados", "Analista de BI").
+- suggested_roles: como um recrutador sênior, os 3 cargos para os quais a pessoa está mais \
+qualificada, do mais adequado ao menos; o primeiro corresponde ao cargo-alvo. Cada um tem:
+  - title: título de vaga comum no mercado brasileiro, mesmo que o currículo use outra \
+palavra; evite variações raras. De 2 a 4 palavras, sem nível (júnior, pleno, sênior), sem \
+"ou", vírgulas, barras nem parênteses. "Estágio" pode entrar, porque é um tipo de vaga \
+(ex.: "Analista de Dados", "Estágio em Dados", "Analista de BI").
+  - evidence: copie, sem alterar nenhuma letra, o trecho do currículo que mais sustenta a \
+indicação. Se não houver, use null.
+  - keywords: de 3 a 8 palavras-chave do currículo que um sistema de triagem procuraria em \
+vagas desse cargo, escritas exatamente como aparecem no currículo, das mais importantes \
+às menos. Não acrescente o que o currículo não cita.
 - summary: uma ou duas frases em português resumindo a experiência, só com fatos do currículo.\
 """
 
@@ -64,7 +71,19 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "seniority_reason": {"type": "string"},
         "skills": {"type": "array", "items": {"type": "string"}},
         "certifications": {"type": "array", "items": {"type": "string"}},
-        "search_terms": {"type": "array", "items": {"type": "string"}},
+        "suggested_roles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "evidence": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "keywords": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["title", "evidence", "keywords"],
+                "additionalProperties": False,
+            },
+        },
         "summary": {"type": "string"},
     },
     "required": [
@@ -74,11 +93,17 @@ OUTPUT_SCHEMA: dict[str, Any] = {
         "seniority_reason",
         "skills",
         "certifications",
-        "search_terms",
+        "suggested_roles",
         "summary",
     ],
     "additionalProperties": False,
 }
+
+
+class SuggestedRole(BaseModel):
+    title: str
+    evidence: str | None
+    keywords: list[str]
 
 
 class ResumeProfile(BaseModel):
@@ -86,13 +111,21 @@ class ResumeProfile(BaseModel):
     seniority: Seniority | None
     skills: list[str]
     certifications: list[str]
+    suggested_roles: list[SuggestedRole]
+    # Os títulos dos cargos sugeridos: é com eles que as vagas são buscadas e ordenadas.
     search_terms: list[str]
     summary: str
 
 
-class _RawProfile(ResumeProfile):
+class _RawProfile(BaseModel):
+    target_role: str | None
     target_role_evidence: str | None
+    seniority: Seniority | None
     seniority_reason: str
+    skills: list[str]
+    certifications: list[str]
+    suggested_roles: list[SuggestedRole]
+    summary: str
 
 
 class AnalysisResult(BaseModel):
@@ -139,32 +172,50 @@ def _found_in(items: list[str], haystack: str, limit: int) -> list[str]:
     return found[:limit]
 
 
-def clean_search_terms(terms: list[str]) -> list[str]:
-    """Termos que funcionam em sites de vaga: curtos, sem nível, sem "ou", vírgulas, barras ou
-    parênteses.
+def clean_search_term(term: str) -> str | None:
+    """Título que funciona em sites de vaga: curto, sem nível, sem "ou", vírgulas, barras ou
+    parênteses. None quando não dá para aproveitar.
 
     Os sites procuram todas as palavras no anúncio, então cada palavra a mais corta resultados
     ("júnior" cortou de 70% a 95% no Vagas.com.br e no InfoJobs). O nível sai do termo e é
-    filtrado no próprio site. Diferente das competências, os termos não precisam estar escritos
-    no currículo: são a tradução do perfil para a busca, por isso a conferência é de formato.
+    filtrado no próprio site. Diferente das competências, o título não precisa estar escrito
+    no currículo: é a tradução do perfil para a busca, por isso a conferência é de formato.
     """
-    cleaned: list[str] = []
+    words = [w for w in term.split() if _normalize(w).strip(".") not in LEVEL_WORDS]
+    term = " ".join(words)
+    if (
+        len(words) < 2
+        or len(words) > MAX_SEARCH_TERM_WORDS
+        or re.search(r"[,/()|]", term)
+        or "ou" in (word.casefold() for word in words)
+    ):
+        return None
+    return term
+
+
+def ground_roles(roles: list[SuggestedRole], haystack: str) -> list[SuggestedRole]:
+    """Cargos com título aproveitável, sem repetir. Evidência e palavras-chave, só as que estão
+    no currículo: a evidência que não confere vira None, mas o cargo fica."""
+    grounded: list[SuggestedRole] = []
     seen: set[str] = set()
-    for term in terms:
-        words = [w for w in term.split() if _normalize(w).strip(".") not in LEVEL_WORDS]
-        term = " ".join(words)
-        if (
-            len(words) < 2
-            or len(words) > MAX_SEARCH_TERM_WORDS
-            or re.search(r"[,/()|]", term)
-            or "ou" in (word.casefold() for word in words)
-        ):
+    for role in roles:
+        title = clean_search_term(role.title)
+        if title is None or _normalize(title) in seen:
             continue
-        key = _normalize(term)
-        if key not in seen:
-            seen.add(key)
-            cleaned.append(term)
-    return cleaned[:MAX_SEARCH_TERMS]
+        seen.add(_normalize(title))
+        evidence = role.evidence
+        grounded.append(
+            SuggestedRole(
+                title=title,
+                evidence=(
+                    evidence.strip()
+                    if evidence and _appears(_normalize(evidence), haystack)
+                    else None
+                ),
+                keywords=_found_in(role.keywords, haystack, MAX_ROLE_KEYWORDS),
+            )
+        )
+    return grounded[:MAX_SUGGESTED_ROLES]
 
 
 def ground_in_resume(raw: _RawProfile, resume_text: str) -> ResumeProfile:
@@ -174,12 +225,15 @@ def ground_in_resume(raw: _RawProfile, resume_text: str) -> ResumeProfile:
     evidence = raw.target_role_evidence
     target_role = raw.target_role if evidence and _appears(_normalize(evidence), haystack) else None
 
+    roles = ground_roles(raw.suggested_roles, haystack)
+
     return ResumeProfile(
         target_role=target_role.strip() if target_role else None,
         seniority=raw.seniority,
         skills=_found_in(raw.skills, haystack, MAX_SKILLS),
         certifications=_found_in(raw.certifications, haystack, MAX_CERTIFICATIONS),
-        search_terms=clean_search_terms(raw.search_terms),
+        suggested_roles=roles,
+        search_terms=[role.title for role in roles],
         summary=raw.summary.strip(),
     )
 

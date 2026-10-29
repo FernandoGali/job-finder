@@ -36,5 +36,35 @@ describe("ProfileCard", () => {
     expect(card).toHaveTextContent("Não deu para deduzir");
     expect(card).toHaveTextContent("Nenhuma competência identificada.");
     expect(screen.queryByRole("list", { name: "Cursos e certificações" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Cargos sugeridos" })).not.toBeInTheDocument();
+  });
+
+  it("mostra os cargos sugeridos com o trecho do currículo e as palavras-chave", () => {
+    render(
+      <ProfileCard
+        profile={{
+          target_role: "Analista de Dados",
+          seniority: "pleno",
+          skills: ["SQL"],
+          certifications: [],
+          suggested_roles: [
+            { title: "Analista de Dados", evidence: "Objetivo: Analista de Dados", keywords: ["SQL", "Python"] },
+            { title: "Analista de BI", evidence: null, keywords: [] },
+          ],
+          search_terms: ["Analista de Dados", "Analista de BI"],
+          summary: "",
+        }}
+      />,
+    );
+
+    const roles = within(screen.getByRole("list", { name: "Cargos sugeridos" })).getAllByRole("listitem");
+    expect(roles[0]).toHaveTextContent("Analista de Dados");
+    expect(roles[0]).toHaveTextContent("No currículo: “Objetivo: Analista de Dados”");
+    const keywords = within(screen.getByRole("list", { name: "Palavras-chave para Analista de Dados" })).getAllByRole(
+      "listitem",
+    );
+    expect(keywords.map((item) => item.textContent)).toEqual(["SQL", "Python"]);
+    // Sem evidência conferida, não aparece trecho nenhum.
+    expect(screen.getByText("Analista de BI").parentElement).not.toHaveTextContent("No currículo");
   });
 });

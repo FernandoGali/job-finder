@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from jobfinder_api.auth import UserSession, get_session
 from jobfinder_api.config import Settings, get_settings
+from jobfinder_api.resume_analysis import SuggestedRole
 from jobfinder_api.supabase_user import SupabaseError, SupabaseUserClient
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class ProfileOut(BaseModel):
     seniority: str | None
     skills: list[str]
     certifications: list[str] = []
+    suggested_roles: list[SuggestedRole] = []
     search_terms: list[str] = []
     summary: str
     analyzed_at: datetime

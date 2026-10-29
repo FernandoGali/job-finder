@@ -22,11 +22,20 @@ export const SENIORITY_LABELS: Record<Seniority, string> = {
   gestao: "Gestão",
 };
 
+/** Cargo sugerido pela IA. Evidência e palavras-chave foram conferidas no currículo pela API. */
+export type SuggestedRole = {
+  title: string;
+  evidence: string | null;
+  keywords: string[];
+};
+
 export type Profile = {
   target_role: string | null;
   seniority: Seniority | null;
   skills: string[];
   certifications: string[];
+  // Ausente nas análises feitas antes de existir.
+  suggested_roles?: SuggestedRole[];
   search_terms: string[];
   summary: string;
 };

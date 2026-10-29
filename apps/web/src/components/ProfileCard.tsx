@@ -17,6 +17,36 @@ export function ProfileCard({ profile }: { profile: Profile }) {
           {profile.seniority ? SENIORITY_LABELS[profile.seniority] : "Não deu para deduzir"}
         </dd>
       </dl>
+      {profile.suggested_roles && profile.suggested_roles.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: "0.9em", margin: "4px 0" }}>Cargos em que você é mais qualificado</h3>
+          <ol aria-label="Cargos sugeridos" style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6 }}>
+            {profile.suggested_roles.map((role) => (
+              <li key={role.title}>
+                <strong>{role.title}</strong>
+                {role.evidence && (
+                  <div style={{ fontSize: "0.85em", color: "#4b5563" }}>No currículo: “{role.evidence}”</div>
+                )}
+                {role.keywords.length > 0 && (
+                  <ul
+                    aria-label={`Palavras-chave para ${role.title}`}
+                    style={{ listStyle: "none", margin: "4px 0 0", padding: 0, display: "flex", flexWrap: "wrap", gap: 6 }}
+                  >
+                    {role.keywords.map((keyword) => (
+                      <li
+                        key={keyword}
+                        style={{ background: "#ecfdf5", borderRadius: 999, padding: "2px 10px", fontSize: "0.85em" }}
+                      >
+                        {keyword}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
       {profile.skills.length > 0 ? (
         <ul
           aria-label="Competências"

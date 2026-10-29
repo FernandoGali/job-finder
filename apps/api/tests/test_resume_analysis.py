@@ -24,6 +24,14 @@ Cursos: Fundamentos do Python 1 (Cisco), Linux Unhatched
 """
 
 
+def role(title: str, evidence: str | None = None, keywords: list[str] | None = None):
+    return {"title": title, "evidence": evidence, "keywords": keywords or []}
+
+
+def roles(*titles: str) -> list[dict[str, Any]]:
+    return [role(title) for title in titles]
+
+
 def answer(**overrides: Any) -> dict[str, Any]:
     return {
         "target_role": "Analista de Dados",
@@ -32,7 +40,10 @@ def answer(**overrides: Any) -> dict[str, Any]:
         "seniority_reason": "4 anos de experiência.",
         "skills": ["Python", "SQL", "Power BI", "C++"],
         "certifications": ["Fundamentos do Python 1", "Linux Unhatched"],
-        "search_terms": ["Analista de Dados", "Analista de BI"],
+        "suggested_roles": [
+            role("Analista de Dados", "Objetivo: Analista de Dados Pleno", ["SQL", "Python"]),
+            role("Analista de BI", "4 anos como Analista de BI", ["Power BI", "SQL"]),
+        ],
         "summary": "Analista de BI com 4 anos de experiência.",
         **overrides,
     }
@@ -71,6 +82,18 @@ async def test_extrai_o_perfil_do_curriculo():
         "seniority": "pleno",
         "skills": ["Python", "SQL", "Power BI", "C++"],
         "certifications": ["Fundamentos do Python 1", "Linux Unhatched"],
+        "suggested_roles": [
+            {
+                "title": "Analista de Dados",
+                "evidence": "Objetivo: Analista de Dados Pleno",
+                "keywords": ["SQL", "Python"],
+            },
+            {
+                "title": "Analista de BI",
+                "evidence": "4 anos como Analista de BI",
+                "keywords": ["Power BI", "SQL"],
+            },
+        ],
         "search_terms": ["Analista de Dados", "Analista de BI"],
         "summary": "Analista de BI com 4 anos de experiência.",
     }
@@ -221,17 +244,17 @@ async def test_termos_de_busca_curtos_e_sem_ou_virgulas_ou_parenteses():
         "Analista de BI",
         "Estágio em Dados",
         "Cientista de Dados",
-        "Engenheiro de Dados",  # passaria do limite de 4
+        "Engenheiro de Dados",
     ]
-    fake = FakeClaude(json.dumps(answer(search_terms=terms)))
+    fake = FakeClaude(json.dumps(answer(suggested_roles=roles(*terms))))
 
     result = await analyze(fake)
 
+    # Só 3 cargos: "Cientista de Dados" e "Engenheiro de Dados" passam do limite.
     assert result.profile.search_terms == [
         "Analista de Dados",
         "Analista de BI",
         "Estágio em Dados",
-        "Cientista de Dados",
     ]
 
 
@@ -243,7 +266,7 @@ async def test_termos_de_busca_perdem_o_nivel_que_corta_resultados():
         "Júnior",
         "Estágio em Dados",
     ]
-    fake = FakeClaude(json.dumps(answer(search_terms=terms)))
+    fake = FakeClaude(json.dumps(answer(suggested_roles=roles(*terms))))
 
     result = await analyze(fake)
 
@@ -256,12 +279,46 @@ async def test_termos_de_busca_perdem_o_nivel_que_corta_resultados():
     ]
 
 
-async def test_pedido_explica_os_termos_de_busca():
+async def test_pedido_explica_os_cargos_sugeridos():
     fake = FakeClaude(json.dumps(answer()))
 
     await analyze(fake)
 
     [request] = fake.requests
-    assert "search_terms" in request["output_config"]["format"]["schema"]["required"]
-    assert 'sem nível (júnior, pleno, sênior), sem "ou"' in request["system"]
-    assert "títulos de vaga comuns no" in request["system"]
+    assert "suggested_roles" in request["output_config"]["format"]["schema"]["required"]
+    assert "como um recrutador sênior, os 3 cargos" in request["system"]
+    assert "sem nível (júnior, pleno, sênior), sem" in request["system"]
+    assert "Não acrescente o que o currículo não cita" in request["system"]
+
+
+async def test_cargo_sugerido_so_guarda_o_que_esta_no_curriculo():
+    suggested = [
+        role(
+            "Analista de Dados",
+            "Objetivo: Cientista de Dados",  # não está no currículo
+            ["SQL", "Tableau", "sql", "Python"],  # Tableau não está; "sql" repetido
+        ),
+        role("Analista de BI", "  4 anos como Analista de BI ", ["Power BI"]),
+    ]
+    fake = FakeClaude(json.dumps(answer(suggested_roles=suggested)))
+
+    result = await analyze(fake)
+
+    [dados, bi] = result.profile.suggested_roles
+    # A evidência que não confere sai, mas o cargo continua sugerido.
+    assert dados.evidence is None
+    assert dados.keywords == ["SQL", "Python"]
+    assert bi.evidence == "4 anos como Analista de BI"
+
+
+async def test_cargo_sugerido_repetido_ou_mal_escrito_sai():
+    suggested = roles("Analista de Dados", "Analista de Dados Júnior", "Dados/BI", "Analista de BI")
+    fake = FakeClaude(json.dumps(answer(suggested_roles=suggested)))
+
+    result = await analyze(fake)
+
+    assert [r.title for r in result.profile.suggested_roles] == [
+        "Analista de Dados",
+        "Analista de BI",
+    ]
+    assert result.profile.search_terms == ["Analista de Dados", "Analista de BI"]

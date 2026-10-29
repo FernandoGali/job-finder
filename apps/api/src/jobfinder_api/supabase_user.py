@@ -138,7 +138,7 @@ class SupabaseUserClient(_SupabaseHttp):
             params={
                 "select": (
                     "id,original_filename,content_type,size_bytes,uploaded_at,"
-                    "profile:resume_profiles(target_role,seniority,skills,certifications,search_terms,summary,analyzed_at)"
+                    "profile:resume_profiles(target_role,seniority,skills,certifications,suggested_roles,search_terms,summary,analyzed_at)"
                 ),
                 "order": "uploaded_at.desc",
             },
